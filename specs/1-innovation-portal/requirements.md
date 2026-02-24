@@ -4,6 +4,10 @@
 **Created**: 2026-02-24
 **Feature**: [spec.md](../spec.md)
 
+> ⚠️ **Note**: This file is the initial, lightweight pre-planning readiness check (pass/fail, written at spec time).
+> The authoritative, detailed specification audit — covering RBAC gates, visibility and file security, status transition completeness, constitution compliance, and all CHK001–CHK057 items — is maintained in **[checklists/spec-audit.md](./checklists/spec-audit.md)**.
+> If a requirement area is covered here and in spec-audit.md, treat spec-audit.md as the canonical source of truth.
+
 ## Content Quality
 
 - [x] No implementation details (languages, frameworks, APIs)

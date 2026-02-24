@@ -40,14 +40,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Write full Prisma schema with all entities — `User`, `Idea`, `Attachment`, `StatusHistory`, plus NextAuth models (`Account`, `Session`, `VerificationToken`) — with enums `Role`, `IdeaStatus`, `Visibility` in `innovation-portal/prisma/schema.prisma`
+- [ ] T007 Write full Prisma schema with all entities — `User`, `Idea`, `Attachment`, `StatusHistory`, plus NextAuth models (`Account`, `Session`, `VerificationToken`) — with enums `Role`, `IdeaStatus`, `IdeaCategory`, `Visibility` in `innovation-portal/prisma/schema.prisma`
 - [ ] T008 Run initial Prisma migration to create PostgreSQL tables (`npx prisma migrate dev --name init`); verify with `npx prisma studio`
 - [ ] T009 Create Prisma client singleton (prevents connection pool exhaustion in hot-reload) in `innovation-portal/src/lib/db.ts`
 - [ ] T010 Configure NextAuth.js v5 with Credentials provider (email + bcrypt compare), `jwt` callback injecting `id` and `role`, `session` callback exposing them on `session.user` in `innovation-portal/src/lib/auth.ts`
 - [ ] T011 Create Next.js middleware using NextAuth `auth` export to protect all routes except `/api/auth/**`, `_next`, `public` in `innovation-portal/middleware.ts`
-- [ ] T012 [P] Create shared TypeScript types and enums (`Role`, `IdeaStatus`, `Visibility`, `IdeaWithRelations`, `PaginatedResponse`) in `innovation-portal/src/types/index.ts`
+- [ ] T012 [P] Create shared TypeScript types and enums (`Role`, `IdeaStatus`, `IdeaCategory`, `Visibility`, `IdeaWithRelations`, `PaginatedResponse`) in `innovation-portal/src/types/index.ts`
 - [ ] T013 [P] Create Zod user validation schemas (`registerSchema`: email, password regex, name; `loginSchema`) in `innovation-portal/src/lib/validations/user.ts`
-- [ ] T014 [P] Create Zod idea validation schemas (`ideaSubmitSchema`: title min 10/max 200, description min 50/max 5000, visibility default PUBLIC; `evaluateSchema`: status enum, feedback min 10) in `innovation-portal/src/lib/validations/idea.ts`
+- [ ] T014 [P] Create Zod idea validation schemas (`ideaSubmitSchema`: title min 10/max 200, description min 50/max 5000, category required as `IdeaCategory` enum, visibility default PUBLIC; `evaluateSchema`: status enum, feedback min 10) in `innovation-portal/src/lib/validations/idea.ts`
 - [ ] T015 Configure Multer `diskStorage` with UUID filename, MIME-type `fileFilter` (PDF/DOC/DOCX/PNG/JPG), and 10 MB `fileSize` limit in `innovation-portal/src/lib/upload.ts`
 - [ ] T016 Create root `layout.tsx` with HTML shell, Tailwind CSS import, and NextAuth `SessionProvider` wrapper in `innovation-portal/src/app/layout.tsx`
 - [ ] T017 [P] Create reusable UI primitive components (`Button`, `Input`, `Label`, `Badge`, `Spinner`) in `innovation-portal/src/components/ui/`
@@ -96,15 +96,15 @@
 
 > **Write these FIRST — confirm they FAIL before starting implementation**
 
-- [ ] T061 [P] [US2] Unit test `ideaSubmitSchema` — title min 10/max 200, description min 50/max 5000, visibility defaults to `PUBLIC`, invalid visibility value rejected in `innovation-portal/tests/unit/validations/idea.test.ts`
+- [ ] T061 [P] [US2] Unit test `ideaSubmitSchema` — title min 10/max 200, description min 50/max 5000, category required (valid enum accepted, invalid value rejected), visibility defaults to `PUBLIC`, invalid visibility value rejected in `innovation-portal/tests/unit/validations/idea.test.ts`
 - [ ] T062 [P] [US2] Unit test Multer `fileFilter` — PDF/DOC/DOCX/PNG/JPEG accepted; unsupported MIME types rejected; disguised file (valid extension but wrong MIME type) rejected; 10 MB limit enforced in `innovation-portal/tests/unit/upload/upload.test.ts`
-- [ ] T063 [US2] Integration test `POST /api/ideas` — 201 with valid attachment; 201 without attachment; 401 unauthenticated; 400 missing required fields; 400 file over 10 MB; 400 unsupported file type in `innovation-portal/tests/integration/api/ideas.test.ts`
-- [ ] T064 [US2] E2E test idea submission — log in → navigate to `/ideas/new` → fill form with PDF attachment and PRIVATE visibility → submit → verify redirect to dashboard → confirm idea appears with "Submitted" status in `innovation-portal/tests/e2e/ideas.spec.ts`
+- [ ] T063 [US2] Integration test `POST /api/ideas` — 201 with valid category and attachment; 201 without attachment; 401 unauthenticated; 400 missing required fields (title, description, category each individually); 400 invalid category value; 400 file over 10 MB; 400 unsupported file type in `innovation-portal/tests/integration/api/ideas.test.ts`
+- [ ] T064 [US2] E2E test idea submission — log in → navigate to `/ideas/new` → fill form with title, description, category (`TECHNOLOGY`), PDF attachment, and `PRIVATE` visibility → submit → verify redirect to dashboard → confirm idea appears with correct category and "Submitted" status in `innovation-portal/tests/e2e/ideas.spec.ts`
 
 ### Implementation for User Story 2
 
 - [ ] T026 [US2] Implement `POST /api/ideas` route: disable body parser, process multipart form via Multer, Zod validate text fields, save `Idea` + optional `Attachment` to DB in a Prisma transaction, return 201 with created idea in `innovation-portal/src/app/api/ideas/route.ts`
-- [ ] T027 [US2] Create `IdeaSubmitForm` component: React Hook Form, title/description textarea, visibility radio (PUBLIC/PRIVATE), file input (client-side type+size pre-check), submission feedback in `innovation-portal/src/components/forms/IdeaSubmitForm.tsx`
+- [ ] T027 [US2] Create `IdeaSubmitForm` component: React Hook Form, title/description textarea, category select (TECHNOLOGY/PROCESS/PRODUCT/COST_SAVING/CUSTOMER_EXPERIENCE/OTHER), visibility radio (PUBLIC/PRIVATE), file input (client-side type+size pre-check), submission feedback in `innovation-portal/src/components/forms/IdeaSubmitForm.tsx`
 - [ ] T028 [US2] Create `/ideas/new` page: server-side auth check, renders `IdeaSubmitForm`, redirects to `/dashboard` after successful submission in `innovation-portal/src/app/ideas/new/page.tsx`
 - [ ] T029 [US2] Create `pagination` helper (offset calc) and `formatDate` utility in `innovation-portal/src/lib/utils.ts`
 - [ ] T068 [US2] Extend `PATCH /api/ideas/[id]` route handler to support submitter visibility change: if payload contains `{ visibility }` and caller is the idea's owner → update `Idea.visibility`; if payload contains `{ status, feedback }` and caller is admin → existing evaluation path; mismatched role/ownership → 403 in `innovation-portal/src/app/api/ideas/[id]/route.ts`
@@ -146,7 +146,7 @@
 
 ---
 
-## Phase 7: User Story 5 — Admin Evaluation Workflow (Priority: P3)
+## Phase 7: User Story 5 — Admin Evaluation Workflow (Priority: P1 — MVP Required)
 
 **Goal**: Admins can review ideas, accept or reject them with required feedback, override previous decisions, and promote users to admin. All changes are audit-trailed in StatusHistory.
 
@@ -185,7 +185,7 @@
 - [ ] T051 Add race-condition protection for first-admin registration (Prisma transaction with unique constraint) in `innovation-portal/src/app/api/auth/register/route.ts`
 - [ ] T052 [P] Create database seed script with test users (`admin@example.com / Admin123!`, `user1@example.com / User1234!`) and 5 sample ideas in `innovation-portal/prisma/seed.ts`; add `"prisma": { "seed": "ts-node prisma/seed.ts" }` to `innovation-portal/package.json`
 - [ ] T053 [P] Add all npm scripts (`dev`, `build`, `start`, `test`, `test:coverage`, `lint`, `typecheck`) to `innovation-portal/package.json`
-- [ ] T054 Validate complete end-to-end flow per `quickstart.md`: run seed, verify all 5 user story acceptance scenarios manually, confirm auth redirects, file upload limits, and status transitions
+- [ ] T054 [P] Verify automated E2E test suite covers the complete end-to-end flow: run `npx playwright test` and confirm all specs in `tests/e2e/` pass — auth flow (T060), idea submission with category and attachment (T064), and full admin evaluation cycle (T067); confirm test coverage report meets 80% threshold via `npm run test:coverage`
 
 ---
 
@@ -212,7 +212,7 @@ Final:   Polish         → depends on all user story phases
 | US2 (P1) | Idea data for US3+ | Phase 2 only | ✅ Yes |
 | US3 (P2) | Phase 6, 7 | Phase 2; benefits from US1+US2 data | ✅ Yes (with seeded data) |
 | US4 (P2) | — | Phase 5 (extends detail page) | ✅ Yes (with seeded evaluated ideas) |
-| US5 (P3) | — | Phase 5 (adds PATCH + admin pages) | ✅ Yes (standalone admin workflow) |
+| US5 (P1) | — | Phase 5 (adds PATCH + admin pages) | ✅ Yes (standalone admin workflow) |
 
 ### Within Each Phase
 
@@ -260,23 +260,25 @@ T030, T031, T032, T035, T036 can all run simultaneously.
 
 ## Implementation Strategy
 
-### MVP First (User Stories 1 + 2 Only)
+### MVP First (All 5 User Stories — Auth + Submission + Evaluation)
 
 1. Complete **Phase 1**: Setup
 2. Complete **Phase 2**: Foundational (CRITICAL — blocks all stories)
 3. Complete **Phase 3**: US1 Authentication
 4. Complete **Phase 4**: US2 Idea Submission
-5. **STOP and VALIDATE**: Users can register, log in, submit ideas — deliverable value
-6. Continue to US3 → US4 → US5
+5. Complete **Phase 5**: US3 Dashboard (required for evaluation context)
+6. Complete **Phase 6**: US4 Status Tracking (required for feedback visibility)
+7. Complete **Phase 7**: US5 Admin Evaluation
+8. **STOP and VALIDATE**: Full end-to-end flow works — user registers, submits idea with category, admin evaluates with feedback, status visible to submitter
+9. Continue to Final Polish phase
 
 ### Incremental Delivery
 
 | Milestone | Completed Phases | What's Deliverable |
 |-----------|------------------|--------------------|
-| MVP | 1 + 2 + 3 + 4 | Register, Login, Submit Idea |
-| v0.2 | + 5 | Dashboard, Idea Details, Attachment Download |
-| v0.3 | + 6 | Status History & Admin Feedback Visible |
-| v1.0 | + 7 + Polish | Full Admin Evaluation Workflow |
+| Early Demo | 1 + 2 + 3 + 4 | Register, Login, Submit Idea (internal validation) |
+| MVP | + 5 + 6 + 7 | Dashboard, Status Tracking, Full Admin Evaluation — end-to-end workflow complete |
+| v1.0 | + Polish | Production-ready: hardened security, seed data, full test coverage report |
 
 ### Parallel Team Strategy
 
@@ -303,5 +305,5 @@ With multiple developers — after Phase 2 completes:
 | **Total** | **69** | |
 
 **Parallel opportunities identified**: 25 tasks marked `[P]` across all phases  
-**MVP scope**: Phases 1 + 2 + 3 + 4 (41 tasks) — delivers register/login/submit workflow with tests  
+**MVP scope**: All Phases 1–7 + Polish (all 69 tasks) — delivers the complete register/login/submit/evaluate workflow with tests. The success criterion is a fully functioning end-to-end workflow where a user can register, submit a categorised idea, and an admin can evaluate and decide on it.  
 **Format validation**: All 69 tasks follow `- [ ] T### [P?] [Story?] Description with file path`

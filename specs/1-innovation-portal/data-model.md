@@ -46,6 +46,7 @@ Represents a submitted innovation idea.
 | `id` | `String` (cuid) | PK, auto-generated | |
 | `title` | `String` | NOT NULL, min 10, max 200 | FR-004 |
 | `description` | `String` | NOT NULL, min 50, max 5000 | FR-004 |
+| `category` | `IdeaCategory` enum | NOT NULL | FR-004; see enum below |
 | `status` | `IdeaStatus` enum | NOT NULL, default `SUBMITTED` | FR-008 |
 | `visibility` | `Visibility` enum | NOT NULL, default `PUBLIC` | FR-007a |
 | `submitterId` | `String` | FK → `User.id`, nullable | Nullable for "Account Deleted" case |
@@ -60,6 +61,7 @@ Represents a submitted innovation idea.
 **Validation rules**:
 - `title`: min 10, max 200 characters; required
 - `description`: min 50, max 5,000 characters; required
+- `category`: must be one of the predefined `IdeaCategory` enum values; required
 - `visibility`: must be `PUBLIC` or `PRIVATE`; defaults to `PUBLIC` if omitted
 
 **Dashboard query rules**:
@@ -70,7 +72,24 @@ Represents a submitted innovation idea.
 
 ---
 
-### 3. IdeaStatus (Enum)
+### 3. IdeaCategory (Enum)
+
+Predefined categories that classify an idea at submission time. Required field on `Idea`.
+
+| Value | Description |
+|-------|-------------|
+| `TECHNOLOGY` | Software, hardware, or infrastructure improvements |
+| `PROCESS` | Workflow, operational, or efficiency improvements |
+| `PRODUCT` | New product or feature ideas |
+| `COST_SAVING` | Ideas that reduce cost or eliminate waste |
+| `CUSTOMER_EXPERIENCE` | Ideas that improve customer satisfaction or UX |
+| `OTHER` | Ideas that do not fit any predefined category |
+
+> **Phase 2 note**: Smart Submission Forms (Phase 2) may introduce category-driven conditional fields. The enum values above are the MVP set and can be extended in future phases without a breaking change.
+
+---
+
+### 4. IdeaStatus (Enum)
 
 | Value | Description |
 |-------|-------------|
@@ -78,6 +97,8 @@ Represents a submitted innovation idea.
 | `UNDER_REVIEW` | Admin has opened the idea for the first time |
 | `ACCEPTED` | Admin accepted the idea |
 | `REJECTED` | Admin rejected the idea |
+
+> **Phase 4 note**: Draft Management (Phase 4) will introduce a `DRAFT` status (idea saved but not yet submitted; visible only to the submitter and editable before submission). This status will be added to this enum in the Phase 4 spec. For Phase 1 MVP, all submitted ideas begin in `SUBMITTED` state and draft saving is out of scope.
 
 **State transition rules**:
 ```
@@ -93,7 +114,7 @@ REJECTED ──(admin override)─────→ UNDER_REVIEW | ACCEPTED  (any 
 
 ---
 
-### 4. Visibility (Enum)
+### 5. Visibility (Enum)
 
 | Value | Description |
 |-------|-------------|
@@ -102,7 +123,7 @@ REJECTED ──(admin override)─────→ UNDER_REVIEW | ACCEPTED  (any 
 
 ---
 
-### 5. Attachment
+### 6. Attachment
 
 Stores metadata for the file attached to an idea. One attachment per idea maximum.
 
@@ -127,7 +148,7 @@ Stores metadata for the file attached to an idea. One attachment per idea maximu
 
 ---
 
-### 6. StatusHistory
+### 7. StatusHistory
 
 Immutable audit trail of all idea status changes.
 
@@ -171,6 +192,15 @@ enum Role {
   ADMIN
 }
 
+enum IdeaCategory {
+  TECHNOLOGY
+  PROCESS
+  PRODUCT
+  COST_SAVING
+  CUSTOMER_EXPERIENCE
+  OTHER
+}
+
 enum IdeaStatus {
   SUBMITTED
   UNDER_REVIEW
@@ -201,14 +231,15 @@ model User {
 }
 
 model Idea {
-  id          String      @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   description String
-  status      IdeaStatus  @default(SUBMITTED)
-  visibility  Visibility  @default(PUBLIC)
+  category    IdeaCategory
+  status      IdeaStatus    @default(SUBMITTED)
+  visibility  Visibility    @default(PUBLIC)
   submitterId String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   submitter     User?           @relation("SubmittedIdeas", fields: [submitterId], references: [id], onDelete: SetNull)
   attachment    Attachment?
@@ -298,10 +329,11 @@ User ─────────────────────────
          │ id (PK)                    │ id (PK)       (adminId, nullable)
          │ title                      │ ideaId (FK)
          │ description                │ adminId (FK, null=system)
-         │ status (enum)              │ oldStatus
-         │ visibility (enum)          │ newStatus
-         │ submitterId (FK, nullable) │ feedback
-         │ createdAt                  │ changedAt
+         │ category (enum)            │ oldStatus
+         │ status (enum)              │ newStatus
+         │ visibility (enum)          │ feedback
+         │ submitterId (FK, nullable) │ changedAt
+         │ createdAt                  │
          └──────┬──────────────────────┘ *
                 │ 1                     (ideaId)
                 ▼ 0..1

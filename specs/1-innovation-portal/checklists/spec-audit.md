@@ -109,10 +109,10 @@
 
 ## Scenario & Edge Case Coverage
 
-- [ ] CHK042 — Are requirements defined for the scenario where a non-admin user directly navigates to an admin-only URL — specific HTTP status or redirect behavior required? [Gap, Security]
-- [ ] CHK043 — Are requirements defined for what happens when an admin's session expires mid-evaluation — is the partially completed evaluation preserved or lost? [Gap, Exception Flow]
-- [ ] CHK044 — Is the "Account Deleted" edge case fully specified — what status and visibility does an orphaned idea have, and can admins still evaluate it? [Ambiguity, Spec §Edge Cases]
-- [ ] CHK045 — Are requirements defined for the behavior when a submission is started but the browser is closed before completion — is a draft saved or is data lost? [Gap, Edge Case]
+- [x] CHK042 — **Resolved**: A non-admin user who directly navigates to an admin-only URL (e.g., `/admin`, `/admin/users`) receives a `403 Forbidden` response and is redirected to `/dashboard` with an "Access denied" error message. This is enforced by the Next.js middleware (`middleware.ts`) which checks `session.user.role === 'ADMIN'` for all `/admin/**` routes. [Gap, Security]
+- [x] CHK043 — **Resolved**: If an admin's session expires while they are on the evaluation page and they attempt to submit the evaluation, the `PATCH /api/ideas/[id]` route returns `401 Unauthorized`. The partially completed evaluation form data is **not saved** (no server-side persistence occurs until explicit submission). The admin is redirected to `/login` on their next navigation. This is an acceptable trade-off for Phase 1 MVP; Phase 4 (Draft Management) may address auto-save patterns. [Gap, Exception Flow]
+- [x] CHK044 — **Resolved**: When a submitter's account is deleted, the associated ideas are **not deleted** (Prisma `onDelete: SetNull` on `Idea.submitterId`). Orphaned ideas: (1) retain their current `status` and `visibility` unchanged; (2) display "Account Deleted" in place of the submitter name on all views; (3) remain fully accessible and evaluatable by admins; (4) remain visible to other users per the existing visibility rules (`PUBLIC` ideas remain public). [Ambiguity, Spec §Edge Cases]
+- [x] CHK045 — **Resolved**: For Phase 1 MVP, if the user closes the browser or navigates away before clicking "Submit", **no data is saved** — the partially filled form is discarded. This is explicit in the Out of Scope section: "Draft saving before submission — submitter can only discard or submit; no partial save". The edge case "What happens when user navigates away during file upload?" is addressed: upload is cancelled and submission is not saved. Phase 4 (Draft Management) will introduce explicit draft saving as a new `DRAFT` status. [Gap, Edge Case]
 
 ---
 

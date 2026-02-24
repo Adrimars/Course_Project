@@ -69,6 +69,7 @@ List ideas with visibility filtering and pagination.
     {
       "id": "clxyz123",
       "title": "Solar-Powered IoT Sensor",
+      "category": "TECHNOLOGY",
       "status": "SUBMITTED",
       "visibility": "PUBLIC",
       "submitter": { "id": "...", "name": "Jane Doe" },
@@ -98,6 +99,7 @@ Submit a new idea. Optionally includes a file attachment (multipart/form-data).
 |-------|------|----------|------------|
 | `title` | string | Yes | min 10, max 200 |
 | `description` | string | Yes | min 50, max 5000 |
+| `category` | `TECHNOLOGY\|PROCESS\|PRODUCT\|COST_SAVING\|CUSTOMER_EXPERIENCE\|OTHER` | Yes | must match `IdeaCategory` enum |
 | `visibility` | `PUBLIC\|PRIVATE` | No | default `PUBLIC` |
 | `attachment` | File | No | PDF/DOC/DOCX/PNG/JPG, max 10 MB |
 
@@ -124,6 +126,7 @@ Get full details of a single idea. **Admin side-effect**: if admin views a `SUBM
   "id": "clxyz123",
   "title": "Solar-Powered IoT Sensor",
   "description": "A detailed proposal for...",
+  "category": "TECHNOLOGY",
   "status": "UNDER_REVIEW",
   "visibility": "PUBLIC",
   "submitter": { "id": "...", "name": "Jane Doe" },

@@ -46,10 +46,10 @@ Users can submit innovation ideas through a form and attach a single supporting 
 
 **Acceptance Scenarios**:
 
-1. **Given** I am logged in and on the submission page, **When** I fill out all required fields (title, description) and click submit, **Then** my idea is saved and I see a confirmation message
+1. **Given** I am logged in and on the submission page, **When** I fill out all required fields (title, description, category) and click submit, **Then** my idea is saved and I see a confirmation message
 2. **Given** I am on the submission page, **When** I select visibility option (public/private), **Then** my idea visibility is saved with that setting (defaults to public if not explicitly set)
 3. **Given** I am on the submission page, **When** I attach a file (PDF, DOC, or image under 10MB), **Then** the file is uploaded with my submission
-4. **Given** I am on the submission page, **When** I try to submit without required fields, **Then** I see validation errors highlighting missing fields
+4. **Given** I am on the submission page, **When** I try to submit without required fields (title, description, or category), **Then** I see validation errors highlighting missing fields
 5. **Given** I am on the submission page, **When** I try to attach a file over 10MB or unsupported format, **Then** I see an error message and the file is not attached
 6. **Given** I have submitted an idea, **When** the submission completes, **Then** I am redirected to the dashboard and see my new idea in the list
 
@@ -92,11 +92,11 @@ Users can see the current status of each idea (Submitted, Under Review, Accepted
 
 ---
 
-### User Story 5 - Admin Evaluation Workflow (Priority: P3)
+### User Story 5 - Admin Evaluation Workflow (Priority: P1)
 
 Administrators can review submitted ideas, provide feedback comments, and set the status to Accepted or Rejected to complete the evaluation loop.
 
-**Why this priority**: This completes the end-to-end workflow but is lower priority because the portal can function as an idea repository without evaluation. Can be added after core submission and viewing features work.
+**Why this priority**: This completes the end-to-end MVP workflow. The success criterion for the MVP requires a fully functioning end-to-end cycle where a user can submit an idea and an admin can evaluate and decide on it. Without evaluation, the portal is only a passive repository and the core product value is not delivered.
 
 **Independent Test**: Can be fully tested by logging in as admin, reviewing an idea, adding comments, and changing status. Delivers standalone admin capability.
 
@@ -139,7 +139,7 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 - **FR-001**: System MUST provide user registration with email validation and password validation enforcing: minimum 8 characters, at least one number, one uppercase letter, one lowercase letter, and one special character
 - **FR-002**: System MUST authenticate users via email/password using NextAuth.js and hash all passwords using bcrypt with minimum 10 rounds
 - **FR-003**: System MUST maintain user sessions and protect routes requiring authentication
-- **FR-004**: Users MUST be able to submit ideas with required fields: title (min 10 chars), description (min 50 chars)
+- **FR-004**: Users MUST be able to submit ideas with required fields: title (min 10 chars), description (min 50 chars), category (must be one of the predefined category values)
 - **FR-005**: System MUST support single file attachment per idea with types: PDF, DOC, DOCX, PNG, JPG (max 10MB)
 - **FR-006**: System MUST store file uploads using Multer and persist metadata in database
 - **FR-007**: System MUST display dashboard listing all ideas with fields: title, submitter, date, status
@@ -157,7 +157,7 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 ### Key Entities *(include if feature involves data)*
 
 - **User**: Represents portal users; attributes include email (unique), hashed password, name, role (user/admin), creation date
-- **Idea**: Represents submitted innovation ideas; attributes include title, description, submitter (User reference), submission date, current status, visibility (public/private, defaults to public), attachment metadata (filename, path, size, MIME type)
+- **Idea**: Represents submitted innovation ideas; attributes include title, description, category (predefined enum), submitter (User reference), submission date, current status, visibility (public/private, defaults to public), attachment metadata (filename, path, size, MIME type)
 - **StatusHistory**: Represents status change audit trail; attributes include idea reference, old status, new status, admin user reference, timestamp, feedback comments
 - **Session**: Represents authenticated user sessions; managed by NextAuth.js; includes user reference, expiration, tokens
 
@@ -196,7 +196,8 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 
 - Email notifications for status changes
 - Multiple file attachments per idea
-- Idea content editing after submission (title and description cannot be changed post-submission; only the visibility setting may be updated by the submitter)
+- Idea content editing after submission (title, description, and category cannot be changed post-submission; only the visibility setting may be updated by the submitter — planned as Phase 4 Draft Management)
+- Draft saving before submission (submitter can only discard or submit; no partial save — addressed in Phase 4)
 - Commenting/discussion threads on ideas
 - User profile pages with preferences
 - Advanced search and filtering (beyond basic status filter)
@@ -208,6 +209,63 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 - Analytics dashboard for submission trends
 - Automated idea evaluation/scoring
 - Multi-project / multi-tenant support (separate workspaces with per-project admins and scoped idea pools) — planned as `2-multi-project-support` after MVP completion
+
+---
+
+## Future Phases (Post-MVP Roadmap)
+
+The following phases are planned for iterative development after the MVP is accepted. Each phase builds on the previous and can be specified in its own feature branch.
+
+### Phase 2 — Smart Submission Forms
+
+Enhance the idea submission form with dynamic, context-aware fields. Planned capabilities:
+- Conditional fields that appear/hide based on selected category
+- Field-level help text and examples per category
+- Auto-save of form state to prevent accidental data loss (precursor to Phase 4 drafts)
+- Character count indicators and real-time validation feedback
+
+### Phase 3 — Multi-Media Support
+
+Expand attachment support beyond a single file. Planned capabilities:
+- Multiple file attachments per idea (up to a configurable limit)
+- Support for video links (YouTube/Vimeo embed URLs)
+- Image gallery preview within the idea detail page
+- Expanded MIME type support (MP4, PPTX, XLSX)
+- Aggregate size cap per idea (e.g., 50 MB total)
+
+### Phase 4 — Draft Management
+
+Allow submitters to save incomplete ideas before committing to submission. Planned capabilities:
+- New `DRAFT` idea status: idea saved but not yet submitted; visible only to the submitter
+- Submitters can edit `DRAFT` ideas (title, description, category, attachment) until submission
+- Explicit "Submit" action transitions idea from `DRAFT` → `SUBMITTED` and locks content
+- Drafts auto-expire after a configurable period of inactivity
+- **Data model impact**: adds `DRAFT` value to `IdeaStatus` enum; removes the post-submission edit restriction for `DRAFT`-state ideas only
+
+### Phase 5 — Multi-Stage Review
+
+Replace the binary Accept/Reject decision with a structured, multi-stage evaluation pipeline. Planned capabilities:
+- Configurable review stages (e.g., Initial Screen → Technical Review → Executive Approval)
+- Different admins or reviewer roles assigned per stage
+- Idea must pass all stages sequentially before reaching a final decision
+- Stage-level feedback visible in the status history timeline
+
+### Phase 6 — Blind Review
+
+Allow admins to evaluate ideas without knowing the identity of the submitter. Planned capabilities:
+- Submitter identity hidden from reviewers during the `UNDER_REVIEW` phase
+- Blinded idea card shows only title, description, category, and attachment (no name/date)
+- Identity revealed automatically after a final Accept/Reject decision is recorded
+- Configurable per-idea or portal-wide blind review toggle
+
+### Phase 7 — Scoring System
+
+Replace or supplement binary decisions with a numeric scoring model. Planned capabilities:
+- Reviewers assign scores on multiple weighted criteria (e.g., feasibility, impact, cost)
+- Aggregate/weighted score calculated automatically per idea
+- Leaderboard or ranked listing of top-scored ideas
+- Score threshold rules to auto-advance or auto-reject ideas
+- Score history tracked alongside status history in the audit trail
 
 ## Non-Functional Requirements *(optional)*
 
