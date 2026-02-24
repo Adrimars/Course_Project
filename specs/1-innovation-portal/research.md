@@ -170,7 +170,7 @@ where: {}
 | Schema | Rules |
 |--------|-------|
 | `registerSchema` | email (valid format), password (min 8, regex: uppercase + lowercase + digit + special char), name (min 2) |
-| `ideaSubmitSchema` | title (min 10, max 200), description (min 50, max 5000), visibility (PUBLIC\|PRIVATE, default PUBLIC) |
+| `ideaSubmitSchema` | title (min 10, max 200), description (min 50, max 5000), category (`IdeaCategory` enum, required), visibility (PUBLIC\|PRIVATE, default PUBLIC) |
 | `evaluateSchema` | status (ACCEPTED\|REJECTED), feedback (min 10, required — per edge case in spec) |
 
 ---
