@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/1-innovation-portal/`
 **Prerequisites**: [plan.md](./plan.md) · [spec.md](./spec.md) · [research.md](./research.md) · [data-model.md](./data-model.md) · [contracts/api-routes.md](./contracts/api-routes.md) · [contracts/auth-contract.md](./contracts/auth-contract.md)
 
-**Tests**: Not requested — no test tasks included per spec.
+**Tests**: Required by constitution Principle V. Unit tests (80% coverage), integration tests, and E2E tests are included in each user story phase and MUST be written before implementation (TDD).
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -27,8 +27,10 @@
 - [ ] T004 [P] Configure ESLint with Next.js rules in `innovation-portal/.eslintrc.json`
 - [ ] T005 [P] Configure Tailwind CSS with custom theme tokens in `innovation-portal/tailwind.config.ts` and `innovation-portal/src/app/globals.css`
 - [ ] T006 Create `.env.example` with all required variables (`DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `UPLOAD_DIR`) in `innovation-portal/.env.example`
+- [ ] T055 [P] Install test dependencies: `jest @types/jest ts-jest @testing-library/react @testing-library/jest-dom supertest @types/supertest` in `innovation-portal/package.json`
+- [ ] T056 [P] Configure Jest with ts-jest preset and jsdom test environment in `innovation-portal/jest.config.ts`; create global test setup file `innovation-portal/tests/setup.ts`; configure Playwright in `innovation-portal/playwright.config.ts` with `baseURL: 'http://localhost:3000'`
 
-**Checkpoint**: Running `npm run dev` starts the dev server without errors
+**Checkpoint**: `npm run dev` starts without errors; `npm test` and `npx playwright test` execute without configuration errors (zero tests, zero failures)
 
 ---
 
@@ -60,6 +62,17 @@
 
 **Independent Test**: Register a new account with compliant password → log in → verify `/dashboard` is accessible → log out → verify redirect to `/login` → verify accessing `/dashboard` redirects back to `/login`.
 
+### Tests for User Story 1
+
+> **Write these FIRST — confirm they FAIL before starting implementation**
+
+- [ ] T057 [P] [US1] Unit test `registerSchema` — valid inputs pass; weak password (missing uppercase/digit/special char each individually), invalid email format, name too short all fail with correct Zod error messages in `innovation-portal/tests/unit/validations/user.test.ts`
+- [ ] T058 [P] [US1] Unit test first-admin logic — `userCount === 0` → role `ADMIN`, `userCount > 0` → role `USER` in `innovation-portal/tests/unit/auth/rbac.test.ts`
+- [ ] T059 [US1] Integration test `POST /api/auth/register` — 201 success with correct body; 409 duplicate email; 400 weak password; 400 missing required fields in `innovation-portal/tests/integration/api/register.test.ts`
+- [ ] T060 [US1] E2E test auth flow — register → login → verify `/dashboard` accessible → logout → verify redirect to `/login` → verify `/dashboard` redirects unauthenticated user to `/login` in `innovation-portal/tests/e2e/auth.spec.ts`
+
+### Implementation for User Story 1
+
 - [ ] T018 [US1] Implement `POST /api/auth/register` route: Zod validation → email uniqueness check → `userCount === 0` first-user-admin logic → `bcryptjs.hash(password, 12)` → `prisma.user.create` in `innovation-portal/src/app/api/auth/register/route.ts`
 - [ ] T019 [US1] Configure NextAuth `[...nextauth]` route handler exporting `GET` and `POST` from `auth` in `innovation-portal/src/app/api/auth/[...nextauth]/route.ts`
 - [ ] T020 [P] [US1] Create `RegisterForm` component: React Hook Form with Zod resolver, fields for name/email/password, client-side password strength error messages in `innovation-portal/src/components/forms/RegisterForm.tsx`
@@ -79,12 +92,25 @@
 
 **Independent Test**: Log in → navigate to `/ideas/new` → submit a valid idea with a PDF attachment and `PRIVATE` visibility → verify redirect to `/dashboard` → confirm idea appears in list with "Submitted" status.
 
+### Tests for User Story 2
+
+> **Write these FIRST — confirm they FAIL before starting implementation**
+
+- [ ] T061 [P] [US2] Unit test `ideaSubmitSchema` — title min 10/max 200, description min 50/max 5000, visibility defaults to `PUBLIC`, invalid visibility value rejected in `innovation-portal/tests/unit/validations/idea.test.ts`
+- [ ] T062 [P] [US2] Unit test Multer `fileFilter` — PDF/DOC/DOCX/PNG/JPEG accepted; unsupported MIME types rejected; disguised file (valid extension but wrong MIME type) rejected; 10 MB limit enforced in `innovation-portal/tests/unit/upload/upload.test.ts`
+- [ ] T063 [US2] Integration test `POST /api/ideas` — 201 with valid attachment; 201 without attachment; 401 unauthenticated; 400 missing required fields; 400 file over 10 MB; 400 unsupported file type in `innovation-portal/tests/integration/api/ideas.test.ts`
+- [ ] T064 [US2] E2E test idea submission — log in → navigate to `/ideas/new` → fill form with PDF attachment and PRIVATE visibility → submit → verify redirect to dashboard → confirm idea appears with "Submitted" status in `innovation-portal/tests/e2e/ideas.spec.ts`
+
+### Implementation for User Story 2
+
 - [ ] T026 [US2] Implement `POST /api/ideas` route: disable body parser, process multipart form via Multer, Zod validate text fields, save `Idea` + optional `Attachment` to DB in a Prisma transaction, return 201 with created idea in `innovation-portal/src/app/api/ideas/route.ts`
 - [ ] T027 [US2] Create `IdeaSubmitForm` component: React Hook Form, title/description textarea, visibility radio (PUBLIC/PRIVATE), file input (client-side type+size pre-check), submission feedback in `innovation-portal/src/components/forms/IdeaSubmitForm.tsx`
 - [ ] T028 [US2] Create `/ideas/new` page: server-side auth check, renders `IdeaSubmitForm`, redirects to `/dashboard` after successful submission in `innovation-portal/src/app/ideas/new/page.tsx`
 - [ ] T029 [US2] Create `pagination` helper (offset calc) and `formatDate` utility in `innovation-portal/src/lib/utils.ts`
+- [ ] T068 [US2] Extend `PATCH /api/ideas/[id]` route handler to support submitter visibility change: if payload contains `{ visibility }` and caller is the idea's owner → update `Idea.visibility`; if payload contains `{ status, feedback }` and caller is admin → existing evaluation path; mismatched role/ownership → 403 in `innovation-portal/src/app/api/ideas/[id]/route.ts`
+- [ ] T069 [US2] Add visibility toggle to `/ideas/[id]` detail page — rendered only for the idea's submitter; PUBLIC/PRIVATE selector calls `PATCH /api/ideas/[id]` with `{ visibility }`, refreshes display on success in `innovation-portal/src/app/ideas/[id]/page.tsx`
 
-**Checkpoint**: US2 fully functional — idea submission with and without attachment works independently; file upload validation (type + size) returns correct errors.
+**Checkpoint**: US2 fully functional — idea submission with and without attachment works independently; file upload validation (type + size) returns correct errors; submitter can change visibility post-submission.
 
 ---
 
@@ -125,6 +151,16 @@
 **Goal**: Admins can review ideas, accept or reject them with required feedback, override previous decisions, and promote users to admin. All changes are audit-trailed in StatusHistory.
 
 **Independent Test**: Log in as admin → navigate to `/admin` → open an idea (verify UNDER_REVIEW auto-transition) → submit Accept decision with feedback → verify status and history update → change to Reject with new feedback → verify full history preserved → navigate to `/admin/users` → promote a user to admin.
+
+### Tests for User Story 5
+
+> **Write these FIRST — confirm they FAIL before starting implementation**
+
+- [ ] T065 [P] [US5] Unit test `evaluateSchema` — valid ACCEPTED/REJECTED/UNDER_REVIEW pass; missing feedback (400); feedback shorter than 10 chars (400); non-enum status value (400) in `innovation-portal/tests/unit/validations/idea.test.ts` (extend existing file)
+- [ ] T066 [US5] Integration test `PATCH /api/ideas/[id]` admin path — 200 Accept with history entry; 200 Reject with history entry; 200 status override preserving all prior history; 403 non-admin; 400 empty feedback; 400 feedback under 10 chars; 404 unknown idea in `innovation-portal/tests/integration/api/evaluate.test.ts`
+- [ ] T067 [US5] E2E test admin evaluation — log in as admin → open SUBMITTED idea → verify auto-transition to UNDER_REVIEW → Accept with feedback → verify 2 StatusHistory entries → override to Reject with new feedback → verify all 3 history entries preserved in `innovation-portal/tests/e2e/admin.spec.ts`
+
+### Implementation for User Story 5
 
 - [ ] T040 [US5] Implement `PATCH /api/ideas/[id]` route: admin-only, Zod validate `{ status, feedback }` (feedback min 10 chars), update `Idea.status` + create `StatusHistory` entry in Prisma transaction, return updated idea in `innovation-portal/src/app/api/ideas/[id]/route.ts`
 - [ ] T041 [P] [US5] Create `EvaluationForm` component: status selector (ACCEPTED/REJECTED/UNDER_REVIEW), required feedback textarea (min 10 chars), submit with loading state in `innovation-portal/src/components/forms/EvaluationForm.tsx`
@@ -256,16 +292,16 @@ With multiple developers — after Phase 2 completes:
 
 | Phase | Tasks | User Story |
 |-------|-------|-----------|
-| Phase 1: Setup | 6 | — |
+| Phase 1: Setup | 8 (6 original + 2 test infra) | — |
 | Phase 2: Foundational | 11 | — |
-| Phase 3: US1 Authentication | 8 | US1 (P1) |
-| Phase 4: US2 Idea Submission | 4 | US2 (P1) |
+| Phase 3: US1 Authentication | 12 (4 tests + 8 impl) | US1 (P1) |
+| Phase 4: US2 Idea Submission | 10 (4 tests + 4 impl + 2 visibility) | US2 (P1) |
 | Phase 5: US3 Dashboard | 8 | US3 (P2) |
 | Phase 6: US4 Status Tracking | 2 | US4 (P2) |
-| Phase 7: US5 Admin Evaluation | 7 | US5 (P3) |
+| Phase 7: US5 Admin Evaluation | 10 (3 tests + 7 impl) | US5 (P3) |
 | Final: Polish | 8 | — |
-| **Total** | **54** | |
+| **Total** | **69** | |
 
-**Parallel opportunities identified**: 18 tasks marked `[P]` across all phases  
-**MVP scope**: Phases 1 + 2 + 3 + 4 (29 tasks) — delivers register/login/submit workflow  
-**Format validation**: All 54 tasks follow `- [ ] T### [P?] [Story?] Description with file path`
+**Parallel opportunities identified**: 25 tasks marked `[P]` across all phases  
+**MVP scope**: Phases 1 + 2 + 3 + 4 (41 tasks) — delivers register/login/submit workflow with tests  
+**Format validation**: All 69 tasks follow `- [ ] T### [P?] [Story?] Description with file path`

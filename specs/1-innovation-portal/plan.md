@@ -12,7 +12,7 @@ Build a full-stack Innovation Portal web application using Next.js where authent
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x with Node.js 20 LTS (Next.js mandated by constitution)  
-**Primary Dependencies**: Next.js 14 (App Router), NextAuth.js 5, Prisma 5, Multer 1.x, bcrypt 5, PostgreSQL 16, Zod (input validation), Tailwind CSS  
+**Primary Dependencies**: Next.js 14 (App Router), NextAuth.js 5, Prisma 5, Multer 1.x, bcryptjs, PostgreSQL 16, Zod (input validation), Tailwind CSS  
 **Storage**: PostgreSQL (relational data + attachment metadata), local filesystem via Multer for uploaded files (`/uploads/` directory)  
 **Testing**: Jest + React Testing Library (unit/integration), Playwright (E2E), minimum 80% coverage enforced  
 **Target Platform**: Node.js 20 web server (Docker-deployable), browser clients  
@@ -48,7 +48,7 @@ specs/1-innovation-portal/
 ├── contracts/           ✅ Phase 1 output
 │   ├── api-routes.md
 │   └── auth-contract.md
-└── tasks.md             🔜 Phase 2 output (/speckit.tasks — NOT created by /speckit.plan)
+└── tasks.md             ✅ Phase 2 output (generated, includes test tasks per constitution §V)
 ```
 
 ### Source Code (repository root)

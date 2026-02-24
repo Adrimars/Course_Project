@@ -171,7 +171,7 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 - **SC-004**: Admins can review and evaluate an idea in under 2 minutes
 - **SC-005**: System successfully handles file uploads up to 10MB without errors
 - **SC-006**: 100% of authenticated routes properly redirect unauthenticated users
-- **SC-007**: Status changes are immediately visible to submitters within 5 seconds of admin action
+- **SC-007**: Status changes are visible to submitters on the next page load or manual refresh after admin action
 - **SC-008**: System supports at least 50 concurrent users without performance degradation
 - **SC-009**: All user inputs are validated and sanitized preventing security vulnerabilities
 - **SC-010**: Complete end-to-end workflow (submit → review → status update → view feedback) executes successfully
@@ -190,12 +190,13 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 - Database persistence using PostgreSQL and Prisma
 - Basic error handling and user feedback
 - Security measures (input validation, authentication checks)
+- Post-submission visibility change by submitter (PUBLIC ↔ PRIVATE toggle on idea detail page)
 
 ### Out of Scope
 
 - Email notifications for status changes
 - Multiple file attachments per idea
-- Idea editing after submission
+- Idea content editing after submission (title and description cannot be changed post-submission; only the visibility setting may be updated by the submitter)
 - Commenting/discussion threads on ideas
 - User profile pages with preferences
 - Advanced search and filtering (beyond basic status filter)
@@ -220,7 +221,7 @@ Administrators can review submitted ideas, provide feedback comments, and set th
 
 - Password requirements: minimum 8 characters with at least one number, one uppercase letter, one lowercase letter, and one special character
 - Passwords hashed using bcrypt with minimum 10 rounds before storage
-- Session tokens expire after 24 hours of inactivity
+- Session tokens expire after 30 days (NextAuth JWT default; invalidated immediately on explicit logout)
 - All sensitive routes protected by authentication middleware
 - File uploads validated for type and size server-side
 - SQL injection prevention via Prisma parameterized queries

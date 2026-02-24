@@ -159,7 +159,11 @@ Get full details of a single idea. **Admin side-effect**: if admin views a `SUBM
 
 ### `PATCH /api/ideas/[id]`
 
-Admin evaluates an idea: sets `status` to `ACCEPTED` or `REJECTED` with required `feedback`.
+Two-role endpoint — handler routes by payload and caller role:
+- **Admin** (`role === ADMIN`): evaluates idea by setting status with required feedback
+- **Submitter** (caller is the idea's owner): changes visibility setting (PUBLIC ↔ PRIVATE)
+
+#### Admin: Evaluate Idea
 
 **Auth required**: Yes, `ADMIN` role
 
@@ -180,8 +184,29 @@ Admin evaluates an idea: sets `status` to `ACCEPTED` or `REJECTED` with required
 |--------|------|-----------|
 | `200` | Updated idea object | Success |
 | `400` | `{ "error": "Feedback is required" }` | Missing/short feedback |
-| `403` | `{ "error": "Admin role required" }` | Non-admin user |
+| `403` | `{ "error": "Admin role required" }` | Caller is neither admin nor submitter |
 | `404` | `{ "error": "Idea not found" }` | ID does not exist |
+
+#### Submitter: Change Visibility
+
+**Auth required**: Yes, must be the idea's submitter
+
+**Request body**:
+```json
+{ "visibility": "PRIVATE" }
+```
+
+**Validation**: `visibility` must be `PUBLIC` or `PRIVATE`
+
+**Responses**:
+| Status | Body | Condition |
+|--------|------|-----------|
+| `200` | Updated idea object | Success |
+| `400` | `{ "error": "Invalid visibility value" }` | Not a valid visibility enum |
+| `403` | `{ "error": "Access denied" }` | Caller is not the idea's submitter |
+| `404` | `{ "error": "Idea not found" }` | ID does not exist |
+
+**Handler routing**: payload contains `{ status, feedback }` → admin evaluation path; payload contains `{ visibility }` → submitter visibility path; role/ownership mismatch → 403.
 
 ---
 
