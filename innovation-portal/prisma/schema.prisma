@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum IdeaStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+enum IdeaCategory {
+  TECHNOLOGY
+  PROCESS
+  PRODUCT
+  COST_SAVING
+  CUSTOMER_EXPERIENCE
+  OTHER
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  hashedPassword String
+  role           Role     @default(USER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  ideas         Idea[]          @relation("submitter")
+  statusChanges StatusHistory[] @relation("admin")
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Idea {
+  id          String       @id @default(cuid())
+  title       String       @db.VarChar(200)
+  description String       @db.VarChar(5000)
+  category    IdeaCategory
+  status      IdeaStatus   @default(SUBMITTED)
+  visibility  Visibility   @default(PUBLIC)
+  submitterId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  submitter     User?           @relation("submitter", fields: [submitterId], references: [id], onDelete: SetNull)
+  attachment    Attachment?
+  statusHistory StatusHistory[]
+
+  @@map("ideas")
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  ideaId       String   @unique
+  originalName String
+  storagePath  String
+  mimeType     String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  // Relations
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model StatusHistory {
+  id         String     @id @default(cuid())
+  ideaId     String
+  adminId    String?
+  fromStatus IdeaStatus?
+  toStatus   IdeaStatus
+  feedback   String?    @db.VarChar(2000)
+  createdAt  DateTime   @default(now())
+
+  // Relations
+  idea  Idea  @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  admin User? @relation("admin", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@map("status_history")
+}
+
+// ─── NextAuth Models ─────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
