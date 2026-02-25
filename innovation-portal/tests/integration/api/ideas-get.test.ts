@@ -26,7 +26,7 @@ const userSession  = { user: { id: 'user-1',  name: 'User',  email: 'u@a.com', r
 const sampleIdea = {
   id: 'idea-1', title: 'Test Idea', category: 'TECHNOLOGY', status: 'UNDER_REVIEW',
   visibility: 'PUBLIC', createdAt: new Date(),
-  submitter: { id: 'user-2', name: 'Bob' }, attachment: null,
+  submitter: { id: 'user-2', name: 'Bob' }, attachments: [],  // Phase 3: array
 };
 
 function makeGetRequest(query = ''): NextRequest {

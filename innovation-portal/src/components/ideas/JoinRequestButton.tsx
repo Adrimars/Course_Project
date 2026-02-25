@@ -54,7 +54,12 @@ export function JoinRequestButton({ ideaId, isOwner }: JoinRequestButtonProps) {
       try {
         const res = await fetch(`/api/ideas/${ideaId}/join-request`);
         if (res.ok) {
-          setMyRequest(await res.json());
+          const data = await res.json();
+          // Admins/inspectors receive an array — they can't join ideas,
+          // so ignore array responses and leave myRequest as null.
+          if (data && !Array.isArray(data)) {
+            setMyRequest(data);
+          }
         }
       } catch {
         // Silently ignore — user just won't see existing request
@@ -101,6 +106,8 @@ export function JoinRequestButton({ ideaId, isOwner }: JoinRequestButtonProps) {
   // Show current request status
   if (myRequest) {
     const info = STATUS_INFO[myRequest.status];
+    // Guard: unknown status value — render nothing
+    if (!info) return null;
     return (
       <div
         className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${info.color}`}

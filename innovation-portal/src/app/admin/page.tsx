@@ -37,7 +37,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         visibility: true,
         createdAt: true,
         submitter: { select: { id: true, name: true } },
-        attachment: { select: { id: true } },
+        attachments: { select: { id: true }, orderBy: { displayOrder: 'asc' } }, // Phase 3
       },
     }),
     prisma.idea.count({ where: whereClause }),

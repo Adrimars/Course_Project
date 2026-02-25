@@ -38,10 +38,13 @@ export function IdeaCard({ idea }: IdeaCardProps) {
                 <span className="text-amber-600">🔒 Private</span>
               </>
             )}
-            {idea.attachment && (
+            {/* Phase 3: show attachment count */}
+            {idea.attachments && idea.attachments.length > 0 && (
               <>
                 <span>·</span>
-                <span className="text-blue-600">📎</span>
+                <span className="text-blue-600">
+                  📎 {idea.attachments.length > 1 ? `${idea.attachments.length} files` : '1 file'}
+                </span>
               </>
             )}
           </div>

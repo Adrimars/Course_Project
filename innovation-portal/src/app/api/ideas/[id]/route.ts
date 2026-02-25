@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { evaluateSchema, visibilityUpdateSchema } from '@/lib/validations/idea';
+import { visibilityUpdateSchema } from '@/lib/validations/idea';
 import { Role } from '@/types';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -24,8 +24,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       submitter: {
         select: { id: true, name: true, email: true },
       },
-      attachment: {
-        select: { id: true, originalName: true, mimeType: true, size: true },
+      attachments: {
+        select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+        orderBy: { displayOrder: 'asc' },
       },
       statusHistory: {
         orderBy: { createdAt: 'asc' },
@@ -79,8 +80,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       where: { id },
       include: {
         submitter: { select: { id: true, name: true, email: true } },
-        attachment: {
-          select: { id: true, originalName: true, mimeType: true, size: true },
+        attachments: {
+          select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+          orderBy: { displayOrder: 'asc' },
         },
         statusHistory: {
           orderBy: { createdAt: 'asc' },
@@ -108,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const isInspector = session.user.role === Role.INSPECTOR;
   const isPrivileged = isAdmin || isInspector;
 
-  // ── Path A: Admin evaluation (status + feedback) ──────────────────────────
+  // ── Path A: Admin/Inspector evaluation (status + feedback) ──────────────────
   if ('status' in body || 'feedback' in body) {
     if (!isPrivileged) {
       return NextResponse.json(
@@ -117,31 +119,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const parsed = evaluateSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: 'Validation failed',
-          details: parsed.error.issues.reduce<Record<string, string[]>>(
-            (acc, issue) => {
-              const key = issue.path.join('.') || 'root';
-              if (!acc[key]) acc[key] = [];
-              acc[key].push(issue.message);
-              return acc;
-            },
-            {}
-          ),
-        },
-        { status: 422 }
-      );
-    }
-
-    const { status: newStatus, feedback } = parsed.data;
-
-    // Fetch current idea to get fromStatus
     const idea = await prisma.idea.findUnique({ where: { id } });
     if (!idea) {
       return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
+    }
+
+    // `idea` was already fetched above; use it directly
+    const fetchedIdea = idea;
+    const newStatus: string = body.status;
+    const feedback: string | undefined = body.feedback;
+
+    // Validate status value exists in schema
+    const allStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'INSPECTING'];
+    if (!allStatuses.includes(newStatus)) {
+      return NextResponse.json({ error: 'Invalid status value.' }, { status: 422 });
     }
 
     // BUG-6 FIX: Enforce valid status transitions
@@ -153,11 +144,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       INSPECTING: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
     };
 
-    const allowed = VALID_TRANSITIONS[idea.status] ?? [];
+    const allowed = VALID_TRANSITIONS[fetchedIdea.status] ?? [];
     if (!allowed.includes(newStatus)) {
       return NextResponse.json(
         {
-          error: `Cannot transition from ${idea.status} to ${newStatus}.`,
+          error: `Cannot transition from ${fetchedIdea.status} to ${newStatus}.`,
           allowedTransitions: allowed,
         },
         { status: 422 }
@@ -165,11 +156,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     // spec CHK029: Optimistic locking — check updatedAt if provided
-    if (body.updatedAt && new Date(body.updatedAt).getTime() !== idea.updatedAt.getTime()) {
+    if (body.updatedAt && new Date(body.updatedAt).getTime() !== fetchedIdea.updatedAt.getTime()) {
       return NextResponse.json(
         {
           error: 'This idea has been updated by another session. Please refresh.',
-          currentUpdatedAt: idea.updatedAt,
+          currentUpdatedAt: fetchedIdea.updatedAt,
         },
         { status: 409 }
       );
@@ -182,8 +173,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         data: { status: newStatus },
         include: {
           submitter: { select: { id: true, name: true, email: true } },
-          attachment: {
-            select: { id: true, originalName: true, mimeType: true, size: true },
+          attachments: {
+            select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+            orderBy: { displayOrder: 'asc' as const },
           },
           statusHistory: {
             orderBy: { createdAt: 'asc' },
@@ -196,9 +188,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         data: {
           ideaId: id,
           adminId: session.user.id,
-          fromStatus: idea.status,
+          fromStatus: fetchedIdea.status,
           toStatus: newStatus,
-          feedback,
+          feedback: feedback ?? null,
         },
       });
 

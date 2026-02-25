@@ -90,13 +90,14 @@ model Idea {
   status      IdeaStatus   @default(SUBMITTED)
   visibility  Visibility   @default(PUBLIC)
   metadata    Json?        // Phase 2: category-specific structured fields
+  videoLinks  Json?        // Phase 3: array of {url, platform, title} video link objects
   submitterId String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   // Relations
   submitter     User?           @relation("submitter", fields: [submitterId], references: [id], onDelete: SetNull)
-  attachment    Attachment?
+  attachments   Attachment[]    // Phase 3: multiple attachments (was single `attachment?`)
   statusHistory StatusHistory[]
   notes         Note[]
   assignments   Assignment[]
@@ -107,11 +108,12 @@ model Idea {
 
 model Attachment {
   id           String   @id @default(cuid())
-  ideaId       String   @unique
+  ideaId       String   // Phase 3: no longer @unique — many per idea
   originalName String
   storagePath  String
   mimeType     String
-  size         Int
+  size         Int      // bytes
+  displayOrder Int      @default(0) // ordering within the idea's gallery
   createdAt    DateTime @default(now())
 
   // Relations

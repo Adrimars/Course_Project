@@ -1,6 +1,6 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Role } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -9,8 +9,26 @@ import { useTabSession } from '@/components/providers/TabAuthProvider';
 export function Navbar() {
   // useTabSession reads from sessionStorage — each browser tab has its own
   // copy, so two tabs can simultaneously display different logged-in users.
-  const { user, logout: clearTabSession } = useTabSession();
+  const { user: tabUser, isLoading: tabLoading, logout: clearTabSession } = useTabSession();
+  // Fall back to NextAuth session when the tab token is absent (e.g. after a
+  // hard refresh that clears sessionStorage while the NextAuth cookie is still valid).
+  const { data: nextAuthSession, status: nextAuthStatus } = useSession();
 
+  const isLoading = tabLoading || nextAuthStatus === 'loading';
+
+  // Build a unified user from whichever source has data
+  const user = tabUser ?? (
+    nextAuthSession?.user
+      ? {
+          id: nextAuthSession.user.id ?? '',
+          email: nextAuthSession.user.email ?? '',
+          name: nextAuthSession.user.name ?? '',
+          role: nextAuthSession.user.role ?? Role.USER,
+        }
+      : null
+  );
+
+  if (isLoading) return null;
   if (!user) return null;
 
   const role = user.role as Role;

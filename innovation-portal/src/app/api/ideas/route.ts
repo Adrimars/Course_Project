@@ -5,12 +5,16 @@ import { prisma } from '@/lib/db';
 import { ideaSubmitSchema } from '@/lib/validations/idea';
 import { getPaginationParams, buildPaginationMeta } from '@/lib/utils';
 import { Role } from '@/types';
-import { uploadDir, ALLOWED_MIME_TYPES } from '@/lib/upload';
+import {
+  uploadDir,
+  ALLOWED_MIME_TYPES,
+  MAX_FILES_PER_IDEA,
+  MAX_AGGREGATE_SIZE,
+  MAX_SINGLE_FILE_SIZE,
+} from '@/lib/upload';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile } from 'fs/promises';
 import path from 'path';
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // ─── GET /api/ideas — Paginated idea list ─────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -92,8 +96,9 @@ export async function GET(req: NextRequest) {
         submitter: {
           select: { id: true, name: true },
         },
-        attachment: {
+        attachments: {
           select: { id: true },
+          orderBy: { displayOrder: 'asc' },
         },
       },
     }),
@@ -120,26 +125,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
   }
 
-  // Extract text fields
+  // ─── Parse text fields ───────────────────────────────────────────────────────────────
   const rawMetadata = formData.get('metadata');
   let parsedMetadata: Record<string, string> | undefined;
   if (rawMetadata && typeof rawMetadata === 'string') {
-    try {
-      parsedMetadata = JSON.parse(rawMetadata);
-    } catch {
-      // ignore malformed metadata
-    }
+    try { parsedMetadata = JSON.parse(rawMetadata); } catch { /* ignore */ }
+  }
+
+  const rawVideoLinks = formData.get('videoLinks');
+  let parsedVideoLinks: Array<{ url: string; title?: string }> | undefined;
+  if (rawVideoLinks && typeof rawVideoLinks === 'string') {
+    try { parsedVideoLinks = JSON.parse(rawVideoLinks); } catch { /* ignore */ }
   }
 
   const textFields = {
-    title: formData.get('title'),
+    title:       formData.get('title'),
     description: formData.get('description'),
-    category: formData.get('category'),
-    visibility: formData.get('visibility') ?? 'PUBLIC',
-    metadata: parsedMetadata,
+    category:    formData.get('category'),
+    visibility:  formData.get('visibility') ?? 'PUBLIC',
+    metadata:    parsedMetadata,
+    videoLinks:  parsedVideoLinks,
   };
 
-  // Validate with Zod
+  // Validate text fields with Zod
   const parsed = ideaSubmitSchema.safeParse(textFields);
   if (!parsed.success) {
     return NextResponse.json(
@@ -159,42 +167,60 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { title, description, category, visibility, metadata } = parsed.data;
+  const { title, description, category, visibility, metadata, videoLinks } = parsed.data;
 
-  // Handle optional file attachment
-  const file = formData.get('attachment');
-  let savedFile: {
+  // ─── Phase 3: Multiple file attachments ─────────────────────────────────────────────
+  // Collect all files from the multipart form (field names: attachment, attachment[])
+  const rawFiles = formData.getAll('attachments');
+  const files = rawFiles.filter((f): f is File => f instanceof File && f.size > 0);
+
+  // Enforce per-idea file count limit
+  if (files.length > MAX_FILES_PER_IDEA) {
+    return NextResponse.json(
+      { error: `You may attach at most ${MAX_FILES_PER_IDEA} files per idea.` },
+      { status: 422 }
+    );
+  }
+
+  // Enforce aggregate size cap (50 MB)
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalSize > MAX_AGGREGATE_SIZE) {
+    return NextResponse.json(
+      { error: 'Total attachment size exceeds the 50 MB per-idea limit.' },
+      { status: 413 }
+    );
+  }
+
+  // Validate and buffer each file
+  type SavedFile = {
     storagePath: string;
     originalName: string;
     mimeType: string;
     size: number;
-  } | null = null;
+    displayOrder: number;
+  };
 
-  if (file instanceof File && file.size > 0) {
-    // spec CHK021: 10 MB limit — client-side and server-side
-    if (file.size > MAX_FILE_SIZE) {
+  const { fileTypeFromBuffer } = await import('file-type');
+  const savedFiles: SavedFile[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+
+    if (file.size > MAX_SINGLE_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'File size exceeds 10MB limit.' },
+        { error: `File "${file.name}" exceeds the 10 MB per-file limit.` },
         { status: 413 }
       );
     }
 
-    // Read file into buffer first so we can inspect magic bytes
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // BUG-2 FIX: Validate MIME type from magic bytes, not the client-supplied
-    // Content-Type header which can be trivially spoofed.
-    const { fileTypeFromBuffer } = await import('file-type');
+    // BUG-2 FIX: Validate MIME type from magic bytes, not the client-supplied header.
     const detected = await fileTypeFromBuffer(buffer);
-
-    // For PDF/DOC files, file-type may detect them; for some .doc files
-    // it may return 'application/x-cfb'. We also allow the detected MIME
-    // to match our allowed set.
     if (!detected || !ALLOWED_MIME_TYPES.has(detected.mime)) {
       return NextResponse.json(
         {
-          error:
-            'File type not allowed. Allowed: PDF, DOC, DOCX, PNG, JPEG',
+          error: `File "${file.name}" has an unsupported type. Allowed: PDF, DOC, DOCX, PNG, JPEG, PPTX, XLSX, MP4`,
         },
         { status: 422 }
       );
@@ -202,19 +228,18 @@ export async function POST(req: NextRequest) {
 
     // spec CHK018: UUID v4 filename, original name stored in DB only
     const storageFilename = uuidv4();
-    const storagePath = path.join(uploadDir, storageFilename);
+    await writeFile(path.join(uploadDir, storageFilename), buffer);
 
-    await writeFile(storagePath, buffer);
-
-    savedFile = {
-      storagePath: storageFilename, // Store only the UUID filename, not the full path
+    savedFiles.push({
+      storagePath:  storageFilename,
       originalName: file.name,
-      mimeType: detected.mime, // Use the detected MIME, not the client-supplied one
-      size: file.size,
-    };
+      mimeType:     detected.mime,
+      size:         file.size,
+      displayOrder: i,
+    });
   }
 
-  // Create idea + optional attachment in a Prisma transaction (spec CHK048)
+  // ─── Create idea + attachments in a Prisma transaction (spec CHK048) ─────────────
   const idea = await prisma.$transaction(async (tx) => {
     const created = await tx.idea.create({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -223,17 +248,19 @@ export async function POST(req: NextRequest) {
         description,
         category,
         visibility,
-        metadata: metadata ?? undefined,
+        metadata:   metadata   ?? undefined,
+        videoLinks: videoLinks && videoLinks.length > 0 ? videoLinks : undefined,
         submitterId: session.user.id,
-        ...(savedFile && {
-          attachment: {
-            create: savedFile,
+        ...(savedFiles.length > 0 && {
+          attachments: {
+            create: savedFiles,
           },
         }),
       } as any,
       include: {
-        attachment: {
-          select: { id: true, originalName: true, mimeType: true, size: true },
+        attachments: {
+          select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+          orderBy: { displayOrder: 'asc' },
         },
         submitter: {
           select: { id: true, name: true, email: true },

@@ -6,9 +6,12 @@ import { Navbar } from '@/components/layout/Navbar';
 import { StatusBadge } from '@/components/ideas/StatusBadge';
 import { StatusHistory } from '@/components/ideas/StatusHistory';
 import { EvaluationForm } from '@/components/forms/EvaluationForm';
+import { MediaGallery } from '@/components/ideas/MediaGallery';
+import { VideoEmbed } from '@/components/ideas/VideoEmbed';
+import { AttachmentList } from '@/components/ideas/AttachmentList';
 import { prisma } from '@/lib/db';
 import { Role } from '@/types';
-import { formatDate, formatFileSize } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 interface AdminIdeaPageProps {
   params: Promise<{ id: string }>;
@@ -58,7 +61,7 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
     where: { id },
     include: {
       submitter: { select: { id: true, name: true, email: true } },
-      attachment: true,
+      attachments: { orderBy: { displayOrder: 'asc' } }, // Phase 3
       statusHistory: {
         orderBy: { createdAt: 'asc' },
         include: { admin: { select: { id: true, name: true } } },
@@ -109,11 +112,11 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
             <dt className="font-medium text-gray-500">Visibility</dt>
             <dd className="mt-0.5 text-gray-900">{displayIdea.visibility}</dd>
           </div>
-          {displayIdea.attachment && (
+          {displayIdea.attachments && displayIdea.attachments.length > 0 && (
             <div>
-              <dt className="font-medium text-gray-500">Attachment</dt>
+              <dt className="font-medium text-gray-500">Attachments</dt>
               <dd className="mt-0.5 text-gray-900">
-                📎 {formatFileSize(displayIdea.attachment.size)}
+                {displayIdea.attachments.length} file{displayIdea.attachments.length > 1 ? 's' : ''}
               </dd>
             </div>
           )}
@@ -127,19 +130,24 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
           </p>
         </section>
 
-        {/* Attachment download */}
-        {displayIdea.attachment && (
-          <section className="mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Attachment</h2>
-            <a
-              href={`/api/ideas/${displayIdea.id}/attachment`}
-              download
-              className="mt-2 inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              📁 {displayIdea.attachment.originalName} ({formatFileSize(displayIdea.attachment.size)})
-            </a>
-          </section>
-        )}
+        {/* Phase 3: Media — images gallery, video embeds, file attachments */}
+        {(() => {
+          const attachmentsBase = `/api/ideas/${displayIdea.id}/attachments`;
+          const imageTypes = new Set(['image/png', 'image/jpeg']);
+          const images    = displayIdea.attachments.filter((a) => imageTypes.has(a.mimeType));
+          const nonImages = displayIdea.attachments.filter((a) => !imageTypes.has(a.mimeType));
+          const rawLinks  = displayIdea.videoLinks as Array<{ url: string; title?: string }> | null;
+          const videos    = rawLinks ?? [];
+          if (images.length === 0 && nonImages.length === 0 && videos.length === 0) return null;
+          return (
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Media &amp; Attachments</h2>
+              <MediaGallery images={images} baseUrl={attachmentsBase} />
+              <VideoEmbed videos={videos} />
+              <AttachmentList attachments={nonImages} baseUrl={attachmentsBase} />
+            </section>
+          );
+        })()}
 
         {/* Status History */}
         {displayIdea.statusHistory.length > 0 && (

@@ -29,7 +29,8 @@ const publicIdea = {
   visibility: 'PUBLIC', submitterId: 'owner-1', category: 'TECHNOLOGY',
   createdAt: new Date(), updatedAt: new Date(),
   submitter: { id: 'owner-1', name: 'Owner', email: 'o@a.com' },
-  attachment: null,
+  attachments: [],   // Phase 3: array (was `attachment: null`)
+  videoLinks: null,
   statusHistory: [],
 };
 

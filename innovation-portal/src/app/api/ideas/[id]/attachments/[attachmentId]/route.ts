@@ -8,18 +8,15 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import path from 'path';
 
-type RouteParams = { params: Promise<{ id: string }> };
+type RouteParams = { params: Promise<{ id: string; attachmentId: string }> };
 
 /**
- * GET /api/ideas/[id]/attachment
+ * GET /api/ideas/[id]/attachments/[attachmentId]
  *
- * Phase 3 backward-compat shim: returns the first (lowest displayOrder)
- * attachment for this idea. For named download of any attachment, use
- * GET /api/ideas/[id]/attachments/[attachmentId] instead.
- *
- * spec CHK009 / FR-005a: Files served exclusively through authenticated
- * API routes. Upload directory is NOT a static asset. Storage UUIDs are
- * never exposed in API responses.
+ * Phase 3: per-attachment download.
+ * - Verifies the attachment belongs to the given idea.
+ * - Same visibility + ownership access control as the idea detail endpoint.
+ * - Storage UUIDs are NEVER exposed in API responses.
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
@@ -27,17 +24,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = await params;
-  const isAdmin = session.user.role === Role.ADMIN;
+  const { id, attachmentId } = await params;
+  const isAdmin      = session.user.role === Role.ADMIN;
+  const isInspector  = session.user.role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
 
-  // Fetch the idea with its first attachment (ordered by displayOrder)
+  // Fetch idea + specific attachment in one query
   const idea = await prisma.idea.findUnique({
     where: { id },
     include: {
-      attachments: {
-        orderBy: { displayOrder: 'asc' },
-        take: 1,
-      },
+      attachments: { where: { id: attachmentId } },
     },
   });
 
@@ -47,14 +43,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const attachment = idea.attachments[0];
   if (!attachment) {
-    return NextResponse.json({ error: 'No attachment found' }, { status: 404 });
+    return NextResponse.json({ error: 'Attachment not found' }, { status: 404 });
   }
 
-  // Apply same access control as idea detail (spec FR-007d / CHK009)
+  // Access control: private ideas + INSPECTING ideas
+  const isOwner = idea.submitterId === session.user.id;
   if (
-    idea.visibility === 'PRIVATE' &&
-    !isAdmin &&
-    idea.submitterId !== session.user.id
+    (idea.visibility === 'PRIVATE' && !isOwner && !isPrivileged) ||
+    (idea.status === 'INSPECTING' && !isPrivileged)
   ) {
     return NextResponse.json(
       { error: 'You do not have access to this file.' },
@@ -65,32 +61,30 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // Resolve the storage path from the UUID filename stored in DB
   const filePath = path.join(uploadDir, attachment.storagePath);
 
-  // Verify the file exists on disk
   try {
     await stat(filePath);
   } catch {
     return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
   }
 
-  // Stream the file with Content-Disposition: attachment header
-  const stream = createReadStream(filePath);
+  // Stream file with Content-Disposition header
+  const stream       = createReadStream(filePath);
   const originalName = encodeURIComponent(attachment.originalName);
 
-  // Convert Node.js ReadableStream to Web ReadableStream
   const webStream = new ReadableStream({
     start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk));
-      stream.on('end', () => controller.close());
-      stream.on('error', (err) => controller.error(err));
+      stream.on('data',  (chunk) => controller.enqueue(chunk));
+      stream.on('end',   ()      => controller.close());
+      stream.on('error', (err)   => controller.error(err));
     },
   });
 
   return new NextResponse(webStream, {
     headers: {
-      'Content-Type': attachment.mimeType,
+      'Content-Type':        attachment.mimeType,
       'Content-Disposition': `attachment; filename="${originalName}"`,
-      'Content-Length': attachment.size.toString(),
-      'Cache-Control': 'no-store',
+      'Content-Length':      attachment.size.toString(),
+      'Cache-Control':       'no-store',
     },
   });
 }

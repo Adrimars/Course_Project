@@ -40,16 +40,39 @@ const mockSession = {
   user: { id: 'user-1', name: 'Alice', email: 'alice@test.com', role: 'USER' },
 };
 
-function makeFormDataRequest(fields: Record<string, string>, file?: { name: string; type: string; content: string }): NextRequest {
+/** Build a request with text fields and zero or more file attachments. */
+function makeFormDataRequest(
+  fields: Record<string, string>,
+  files?: Array<{ name: string; type: string; content: string }>,
+  videoLinks?: Array<{ url: string; title?: string }>
+): NextRequest {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) fd.append(k, v);
-  if (file) {
-    fd.append('attachment', new Blob([file.content], { type: file.type }), file.name);
+  if (files) {
+    // Phase 3: field name is 'attachments' (plural)
+    for (const f of files) {
+      fd.append('attachments', new Blob([f.content], { type: f.type }), f.name);
+    }
+  }
+  if (videoLinks) {
+    fd.append('videoLinks', JSON.stringify(videoLinks));
   }
   return new NextRequest('http://localhost:3000/api/ideas', { method: 'POST', body: fd });
 }
 
-describe('POST /api/ideas', () => {
+// ── Default mock transaction setup ───────────────────────────────────────────
+function setupSuccessfulTransaction() {
+  const createdIdea = { id: 'idea-1', title: 'A Valid Long Title Here', status: 'SUBMITTED' };
+  mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+    fn({
+      idea: { create: jest.fn().mockResolvedValue(createdIdea) },
+      attachment: { create: jest.fn() },
+    })
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /api/ideas – authentication & validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getServerSession as jest.Mock).mockResolvedValue(mockSession);
@@ -83,14 +106,7 @@ describe('POST /api/ideas', () => {
   });
 
   it('returns 201 for a valid text-only submission', async () => {
-    const createdIdea = { id: 'idea-1', title: 'A Valid Long Title Here', status: 'SUBMITTED' };
-    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({
-        idea: { create: jest.fn().mockResolvedValue(createdIdea) },
-        attachment: { create: jest.fn() },
-      })
-    );
-
+    setupSuccessfulTransaction();
     const req = makeFormDataRequest({
       title: 'A Valid Long Title Here',
       description: 'A'.repeat(50),
@@ -101,12 +117,20 @@ describe('POST /api/ideas', () => {
     const body = await res.json();
     expect(body.id).toBe('idea-1');
   });
+});
 
-  it('returns 413 when attached file exceeds 10 MB', async () => {
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /api/ideas – Phase 1 file validation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+  });
+
+  it('returns 413 when a single file exceeds 10 MB', async () => {
     const largeContent = 'x'.repeat(11 * 1024 * 1024); // 11 MB
     const req = makeFormDataRequest(
       { title: 'A Valid Long Title Here', description: 'A'.repeat(50), category: 'TECHNOLOGY' },
-      { name: 'big.pdf', type: 'application/pdf', content: largeContent }
+      [{ name: 'big.pdf', type: 'application/pdf', content: largeContent }]
     );
     const res = await POST(req);
     expect(res.status).toBe(413);
@@ -115,9 +139,133 @@ describe('POST /api/ideas', () => {
   it('returns 422 for a disallowed MIME type', async () => {
     const req = makeFormDataRequest(
       { title: 'A Valid Long Title Here', description: 'A'.repeat(50), category: 'TECHNOLOGY' },
-      { name: 'script.sh', type: 'application/x-sh', content: '#!/bin/sh' }
+      [{ name: 'script.sh', type: 'application/x-sh', content: '#!/bin/sh' }]
     );
     const res = await POST(req);
     expect(res.status).toBe(422);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /api/ideas – Phase 3: multi-file validation', () => {
+  const baseFields = {
+    title: 'A Valid Long Title Here',
+    description: 'A'.repeat(50),
+    category: 'TECHNOLOGY',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+  });
+
+  it('returns 422 when more than 5 files are attached', async () => {
+    const files = Array.from({ length: 6 }, (_, i) => ({
+      name: `file${i}.pdf`,
+      type: 'application/pdf',
+      content: 'pdf-content',
+    }));
+    const req = makeFormDataRequest(baseFields, files);
+    const res = await POST(req);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toMatch(/at most 5/i);
+  });
+
+  it('returns 413 when total size of multiple files exceeds 50 MB', async () => {
+    // 3 files × 18 MB = 54 MB > 50 MB
+    const bigContent = 'x'.repeat(18 * 1024 * 1024);
+    const files = Array.from({ length: 3 }, (_, i) => ({
+      name: `file${i}.pdf`,
+      type: 'application/pdf',
+      content: bigContent,
+    }));
+    const req = makeFormDataRequest(baseFields, files);
+    const res = await POST(req);
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.error).toMatch(/50 MB/i);
+  });
+
+  it('returns 422 for an MP4 file with wrong declared MIME type', async () => {
+    const req = makeFormDataRequest(
+      baseFields,
+      [{ name: 'video.mp4', type: 'video/avi', content: 'fake-avi' }]
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(422);
+  });
+
+  it('returns 201 with exactly 5 small valid files', async () => {
+    setupSuccessfulTransaction();
+    // Content starts with %PDF magic bytes so the file-type mock detects application/pdf
+    const files = Array.from({ length: 5 }, (_, i) => ({
+      name: `doc${i}.pdf`,
+      type: 'application/pdf',
+      content: '%PDF-placeholder',    // 0x25 0x50 0x44 triggers PDF detection in __mocks__/file-type.js
+    }));
+    const req = makeFormDataRequest(baseFields, files);
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /api/ideas – Phase 3: video link validation', () => {
+  const baseFields = {
+    title: 'A Valid Long Title Here',
+    description: 'A'.repeat(50),
+    category: 'TECHNOLOGY',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+  });
+
+  it('returns 422 when a video link URL is not YouTube or Vimeo', async () => {
+    const req = makeFormDataRequest(baseFields, undefined, [
+      { url: 'https://dailymotion.com/video/12345', title: 'Some Video' },
+    ]);
+    const res = await POST(req);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.details?.['videoLinks.0.url'] ?? body.error).toBeDefined();
+  });
+
+  it('returns 422 when more than 3 video links are submitted', async () => {
+    const links = Array.from({ length: 4 }, (_, i) => ({
+      url: `https://www.youtube.com/watch?v=dQw4w9WgXc${i}`,
+      title: `Video ${i}`,
+    }));
+    const req = makeFormDataRequest(baseFields, undefined, links);
+    const res = await POST(req);
+    expect(res.status).toBe(422);
+  });
+
+  it('returns 201 with a valid YouTube link', async () => {
+    setupSuccessfulTransaction();
+    const req = makeFormDataRequest(baseFields, undefined, [
+      { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Demo' },
+    ]);
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 201 with a valid Vimeo link', async () => {
+    setupSuccessfulTransaction();
+    const req = makeFormDataRequest(baseFields, undefined, [
+      { url: 'https://vimeo.com/123456789', title: 'Vimeo Demo' },
+    ]);
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 201 with no video links supplied', async () => {
+    setupSuccessfulTransaction();
+    const req = makeFormDataRequest(baseFields);
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
+});
+

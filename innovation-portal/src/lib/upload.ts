@@ -14,14 +14,30 @@ if (!fs.existsSync(uploadDir)) {
 
 // ─── Allowed MIME Types ───────────────────────────────────────────────────────
 // spec CHK017: MIME type validated server-side, not by extension
+// Phase 3: expanded to include PPTX, XLSX, and MP4
 
 const ALLOWED_MIME_TYPES = new Set([
+  // Documents (Phase 1)
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // Images (Phase 1)
   'image/png',
   'image/jpeg',
+  // Presentations (Phase 3)
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  // Spreadsheets (Phase 3)
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  // Video (Phase 3)
+  'video/mp4',
 ]);
+
+// Phase 3: per-idea limits
+export const MAX_FILES_PER_IDEA = 5;
+export const MAX_AGGREGATE_SIZE = 50 * 1024 * 1024; // 50 MB total
+export const MAX_SINGLE_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
 // ─── Disk Storage Configuration ───────────────────────────────────────────────
 
@@ -56,9 +72,9 @@ export const upload = multer({
   storage,
   fileFilter,
   limits: {
-    // spec CHK021: 10 MB file size limit enforced at both layers
+    // Phase 3: 10 MB per individual file; aggregate cap enforced at API level
     fileSize: 10 * 1024 * 1024,
-    files: 1,
+    files: MAX_FILES_PER_IDEA,
   },
 });
 

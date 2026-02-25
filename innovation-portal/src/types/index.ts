@@ -57,9 +57,17 @@ export interface UserProfile {
 
 export interface AttachmentInfo {
   id: string;
+  ideaId: string;
   originalName: string;
   mimeType: string;
-  size: number;
+  size: number;        // bytes
+  displayOrder: number;
+}
+
+/** Phase 3: Structured video link stored as JSON on the Idea row */
+export interface VideoLink {
+  url: string;
+  title: string;
 }
 
 export interface StatusHistoryEntry {
@@ -132,6 +140,7 @@ export interface IdeaWithRelations {
   status: IdeaStatus;
   visibility: Visibility;
   metadata: Record<string, string> | null; // Phase 2: category-specific fields
+  videoLinks: VideoLink[] | null;           // Phase 3: embedded video links
   createdAt: Date;
   updatedAt: Date;
   submitter: {
@@ -139,7 +148,7 @@ export interface IdeaWithRelations {
     name: string;
     email: string;
   } | null;
-  attachment: AttachmentInfo | null;
+  attachments: AttachmentInfo[]; // Phase 3: multiple attachments
   statusHistory: StatusHistoryEntry[];
 }
 
@@ -154,7 +163,8 @@ export interface IdeaSummary {
     id: string;
     name: string;
   } | null;
-  attachment: { id: string } | null;
+  /** Phase 3: one entry per attachment; count tells how many files are attached */
+  attachments: Array<{ id: string }>;
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

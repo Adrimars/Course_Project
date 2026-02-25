@@ -3,17 +3,19 @@ import { authOptions } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
-import { StatusBadge } from '@/components/ideas/StatusBadge';
+import { InlineStatusControl } from '@/components/ideas/InlineStatusControl';
 import { StatusHistory } from '@/components/ideas/StatusHistory';
-import { EvaluationForm } from '@/components/forms/EvaluationForm';
 import { VisibilityToggle } from '@/components/ideas/VisibilityToggle';
 import { NoteList } from '@/components/ideas/NoteList';
 import { AssignmentSection } from '@/components/ideas/AssignmentSection';
 import { JoinRequestButton } from '@/components/ideas/JoinRequestButton';
 import { JoinRequestsPanel } from '@/components/ideas/JoinRequestsPanel';
+import { MediaGallery } from '@/components/ideas/MediaGallery';
+import { VideoEmbed } from '@/components/ideas/VideoEmbed';
+import { AttachmentList } from '@/components/ideas/AttachmentList';
 import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
-import { formatDate, formatFileSize } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { CATEGORY_FIELDS } from '@/lib/validations/idea';
 
 interface IdeaDetailPageProps {
@@ -59,35 +61,15 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
     );
   }
 
-  // spec FR-008: auto-transition SUBMITTED → UNDER_REVIEW on admin view
-  // BUG-3 FIX: Use updateMany with status guard to prevent duplicate
-  // StatusHistory entries from concurrent page loads.
-  if (isPrivileged && stub.status === 'SUBMITTED') {
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.idea.updateMany({
-        where: { id, status: 'SUBMITTED' },
-        data: { status: 'UNDER_REVIEW' },
-      });
-      if (updated.count > 0) {
-        await tx.statusHistory.create({
-          data: {
-            ideaId: id,
-            fromStatus: 'SUBMITTED',
-            toStatus: 'UNDER_REVIEW',
-            adminId: session.user.id,
-            feedback: 'Opened by administrator for review.',
-          },
-        });
-      }
-    });
-  }
+  // spec FR-008: auto-transition removed — all status changes are now manual.
+  // Admin/inspector evaluation form will show the SUBMITTED→UNDER_REVIEW option.
 
   // Full fetch with all relations
   const displayIdea = await prisma.idea.findUnique({
     where: { id },
     include: {
       submitter: { select: { id: true, name: true, email: true } },
-      attachment: true,
+      attachments: { orderBy: { displayOrder: 'asc' } }, // Phase 3: multiple
       statusHistory: {
         orderBy: { createdAt: 'asc' },
         include: { admin: { select: { id: true, name: true } } },
@@ -99,7 +81,8 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
 
   const canSeeHistory = isOwner || isAdmin;
   const canEvaluate =
-    isAdmin && ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'].includes(displayIdea.status);
+    (isAdmin || isInspector) &&
+    ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'INSPECTING'].includes(displayIdea.status);
 
   return (
     <>
@@ -113,7 +96,12 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
         {/* 1. Title + Status */}
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900 leading-snug">{displayIdea.title}</h1>
-          <StatusBadge status={displayIdea.status as any} />
+          <InlineStatusControl
+            ideaId={displayIdea.id}
+            currentStatus={displayIdea.status}
+            currentUpdatedAt={displayIdea.updatedAt.toISOString()}
+            isPrivileged={isPrivileged}
+          />
         </div>
 
         {/* 2. Metadata */}
@@ -134,12 +122,11 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
               {displayIdea.category.replace(/_/g, ' ').toLowerCase()}
             </dd>
           </div>
-          {displayIdea.attachment && (
+          {displayIdea.attachments && displayIdea.attachments.length > 0 && (
             <div>
-              <dt className="font-medium text-gray-500">Attachment</dt>
-              <dd className="mt-0.5 flex items-center gap-1 text-gray-900">
-                <span>📎</span>
-                <span>{formatFileSize(displayIdea.attachment.size)}</span>
+              <dt className="font-medium text-gray-500">Attachments</dt>
+              <dd className="mt-0.5 text-gray-900">
+                {displayIdea.attachments.length} file{displayIdea.attachments.length > 1 ? 's' : ''}
               </dd>
             </div>
           )}
@@ -178,19 +165,27 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
           );
         })()}
 
-        {/* 5. Attachment download */}
-        {displayIdea.attachment && (
-          <section className="mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Attachment</h2>
-            <a
-              href={`/api/ideas/${displayIdea.id}/attachment`}
-              download
-              className="mt-2 inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              📁 {displayIdea.attachment.originalName} ({formatFileSize(displayIdea.attachment.size)})
-            </a>
-          </section>
-        )}
+        {/* 5. Phase 3: Media — images gallery, video embeds, file attachments */}
+        {(() => {
+          const attachmentsBase = `/api/ideas/${displayIdea.id}/attachments`;
+          const imageTypes = new Set(['image/png', 'image/jpeg']);
+          const images    = displayIdea.attachments.filter((a) => imageTypes.has(a.mimeType));
+          const nonImages = displayIdea.attachments.filter((a) => !imageTypes.has(a.mimeType));
+          // Phase 3: parse stored videoLinks JSON
+          const rawLinks  = displayIdea.videoLinks as Array<{ url: string; title?: string }> | null;
+          const videos    = rawLinks ?? [];
+
+          if (images.length === 0 && nonImages.length === 0 && videos.length === 0) return null;
+
+          return (
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Media &amp; Attachments</h2>
+              <MediaGallery images={images} baseUrl={attachmentsBase} />
+              <VideoEmbed videos={videos} />
+              <AttachmentList attachments={nonImages} baseUrl={attachmentsBase} />
+            </section>
+          );
+        })()}
 
         {/* 5. Visibility toggle (submitter only) */}
         {isOwner && (
@@ -212,18 +207,6 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
               Status History
             </h2>
             <StatusHistory history={displayIdea.statusHistory as any} />
-          </section>
-        )}
-
-        {/* 7. Admin evaluation panel */}
-        {canEvaluate && (
-          <section className="mt-8 rounded-lg border border-blue-200 bg-blue-50 p-6">
-            <h2 className="mb-4 text-base font-semibold text-blue-900">Admin Evaluation</h2>
-            <EvaluationForm
-              ideaId={displayIdea.id}
-              currentStatus={displayIdea.status as any}
-              currentUpdatedAt={displayIdea.updatedAt.toISOString()}
-            />
           </section>
         )}
 

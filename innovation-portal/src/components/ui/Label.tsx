@@ -12,7 +12,7 @@ export function Label({
 }: LabelProps) {
   return (
     <label
-      className={`block text-sm font-medium text-gray-700 ${className}`}
+      className={`block text-sm font-semibold text-gray-800 ${className}`}
       {...props}
     >
       {children}

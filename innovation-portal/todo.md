@@ -109,7 +109,30 @@
 - [x] Real-time validation feedback (`mode: 'onChange'` in React Hook Form)
 
 ## Phase 3: Multi-Media Support 🎬
-- [ ] Image/video uploads · Media gallery · Thumbnails
+- [x] Multiple file attachments per idea (up to 5 files)
+  - [x] Remove `@unique` on `Attachment.ideaId`; add `displayOrder Int @default(0)`
+  - [x] Add `videoLinks Json?` to `Idea` model
+  - [x] Migration `20260225102703_phase3_multi_media` applied
+  - [x] `MAX_FILES_PER_IDEA = 5`, `MAX_AGGREGATE_SIZE = 50 MB`, `MAX_SINGLE_FILE_SIZE = 10 MB` exports in `upload.ts`
+  - [x] `POST /api/ideas`: multi-file via `formData.getAll('attachments')`, per-file + aggregate size checks, magic-byte MIME validation per file
+  - [x] All Prisma queries updated: `attachment` → `attachments` (list pages, detail pages, API routes)
+  - [x] Backward-compat shim: `GET /api/ideas/[id]/attachment` returns first attachment
+  - [x] New per-attachment route: `GET /api/ideas/[id]/attachments/[attachmentId]`
+- [x] Video links (YouTube / Vimeo embed)
+  - [x] `videoLinkSchema` + `VideoLinkInput` in `src/lib/validations/idea.ts` (max 3 links)
+  - [x] `VideoEmbed` component with `getEmbedUrl()` for both YouTube and Vimeo
+  - [x] `POST /api/ideas` parses and stores `videoLinks` JSON
+- [x] Image gallery preview
+  - [x] `MediaGallery` component: responsive grid, click-to-lightbox, lazy loading
+- [x] Expanded MIME types: PPTX, XLSX, MP4
+  - [x] `ALLOWED_MIME_TYPES` updated in `upload.ts`
+- [x] `AttachmentList` component: non-image files with MIME icons + download links
+- [x] `IdeaSubmitForm` rewritten: multi-file input, video link manager, aggregate size display
+- [x] `IdeaCard` updated: shows attachment count badge
+- [x] TypeScript clean — zero `tsc --noEmit` errors after `prisma generate`
+- [x] Unit tests: expanded MIME types + limit constants (`tests/unit/upload/upload.test.ts`)
+- [x] Integration tests: multi-file validation, aggregate size, video link validation (`tests/integration/api/ideas.test.ts`)
+- [x] All 188 tests passing
 
 ## Phase 4: Draft Management 📋
 - [ ] DRAFT status · Auto-save · "My Drafts" section
@@ -125,4 +148,4 @@
 
 ---
 
-*Last updated: 2026-02-25*
+*Last updated: 2026-02-25 — Phase 3 complete*

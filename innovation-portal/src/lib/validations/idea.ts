@@ -81,12 +81,34 @@ export const CATEGORY_TEMPLATES: Record<string, { title: string; description: st
 };
 
 /**
+ * Phase 3: Video link schema — accepts YouTube or Vimeo watch/embed URLs.
+ */
+const youtubePattern = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/;
+const vimeoPattern   = /^https?:\/\/(www\.)?vimeo\.com\/\d+/;
+
+export const videoLinkSchema = z.object({
+  url: z
+    .string()
+    .url('Video URL must be a valid URL')
+    .refine(
+      (v) => youtubePattern.test(v) || vimeoPattern.test(v),
+      'Only YouTube and Vimeo URLs are supported'
+    ),
+  title: z
+    .string()
+    .max(200, 'Video title must not exceed 200 characters')
+    .optional()
+    .default(''),
+});
+
+export type VideoLinkInput = z.infer<typeof videoLinkSchema>;
+
+/**
  * Schema for idea submission (POST /api/ideas)
- * Title: min 10, max 200 chars
- * Description: min 50, max 5000 chars
- * Category: required enum value
- * Visibility: defaults to PUBLIC
+ * Title: min 10 / max 200 chars · Description: min 50 / max 5000 chars
+ * Category: required enum · Visibility: defaults to PUBLIC
  * Metadata: optional category-specific key/value fields (Phase 2)
+ * VideoLinks: optional array of YouTube/Vimeo links, max 3 (Phase 3)
  */
 export const ideaSubmitSchema = z.object({
   title: z
@@ -102,6 +124,12 @@ export const ideaSubmitSchema = z.object({
   }),
   visibility: z.enum(VisibilityValues).optional().default('PUBLIC'),
   metadata: categoryMetadataSchema,
+  // Phase 3: optional array of YouTube/Vimeo video links (max 3)
+  videoLinks: z
+    .array(videoLinkSchema)
+    .max(3, 'You may add at most 3 video links')
+    .optional()
+    .default([]),
 });
 
 /**
