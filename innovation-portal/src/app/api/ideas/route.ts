@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { ideaSubmitSchema, draftSaveSchema } from '@/lib/validations/idea';
 import { getPaginationParams, buildPaginationMeta } from '@/lib/utils';
 import { Role } from '@/types';
+import { IdeaStatus as PrismaStatus } from '@prisma/client';
 import {
   uploadDir,
   ALLOWED_MIME_TYPES,
@@ -42,10 +43,10 @@ export async function GET(req: NextRequest) {
   // - Regular users see PUBLIC + own PRIVATE, but never INSPECTING or DRAFT
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const accessFilter: any = isPrivileged
-    ? { status: { not: 'DRAFT' } }
+    ? { status: { not: PrismaStatus.DRAFT } }
     : {
       AND: [
-        { status: { notIn: ['INSPECTING', 'DRAFT'] } },
+        { status: { notIn: [PrismaStatus.INSPECTING, PrismaStatus.DRAFT] } },
         {
           OR: [
             { visibility: 'PUBLIC' },

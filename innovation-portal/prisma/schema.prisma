@@ -37,6 +37,12 @@ enum AssignmentStatus {
   DECLINED
 }
 
+enum StageDecision {
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
 enum JoinRequestStatus {
   PENDING
   APPROVED
@@ -76,6 +82,10 @@ model User {
   assignedBy    Assignment[]    @relation("assigner")
   joinRequests  JoinRequest[]
 
+  // Phase 5: Multi-stage review relations
+  stageReviewing  ReviewStage[] @relation("stageReviewer")
+  stageReviewsBy  StageReview[] @relation("stageReviewAuthor")
+
   // NextAuth relations
   accounts Account[]
   sessions Session[]
@@ -90,11 +100,13 @@ model Idea {
   category    IdeaCategory
   status      IdeaStatus   @default(SUBMITTED)
   visibility  Visibility   @default(PUBLIC)
-  metadata    Json?        // Phase 2: category-specific structured fields
-  videoLinks  Json?        // Phase 3: array of {url, platform, title} video link objects
-  submitterId String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  metadata          Json?        // Phase 2: category-specific structured fields
+  videoLinks        Json?        // Phase 3: array of {url, platform, title} video link objects
+  submitterId       String?
+  pipelineId        String?      // Phase 5: assigned review pipeline
+  currentStageOrder Int          @default(1) // Phase 5: current stage in pipeline (1-based)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   // Relations
   submitter     User?           @relation("submitter", fields: [submitterId], references: [id], onDelete: SetNull)
@@ -103,6 +115,8 @@ model Idea {
   notes         Note[]
   assignments   Assignment[]
   joinRequests  JoinRequest[]
+  pipeline      ReviewPipeline? @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  stageReviews  StageReview[]
 
   @@map("ideas")
 }
@@ -187,6 +201,56 @@ model JoinRequest {
 
   @@unique([ideaId, userId]) // One active request per user per idea
   @@map("join_requests")
+}
+
+// ─── Phase 5: Multi-Stage Review Models ─────────────────────────────────────
+
+model ReviewPipeline {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(200)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stages ReviewStage[]
+  ideas  Idea[]
+
+  @@map("review_pipelines")
+}
+
+model ReviewStage {
+  id          String   @id @default(cuid())
+  pipelineId  String
+  name        String   @db.VarChar(200)
+  description String?  @db.VarChar(1000)
+  stageOrder  Int      // 1-based sequential order
+  reviewerId  String?  // assigned reviewer (ADMIN/INSPECTOR user ID)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pipeline     ReviewPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  reviewer     User?          @relation("stageReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  stageReviews StageReview[]
+
+  @@unique([pipelineId, stageOrder])
+  @@map("review_stages")
+}
+
+model StageReview {
+  id         String        @id @default(cuid())
+  ideaId     String
+  stageId    String
+  reviewerId String
+  decision   StageDecision
+  feedback   String        @db.VarChar(2000)
+  createdAt  DateTime      @default(now())
+
+  idea     Idea        @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  stage    ReviewStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  reviewer User        @relation("stageReviewAuthor", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@map("stage_reviews")
 }
 
 // ─── NextAuth Models ─────────────────────────────────────────────────────────

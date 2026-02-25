@@ -9,6 +9,9 @@ import { EvaluationForm } from '@/components/forms/EvaluationForm';
 import { MediaGallery } from '@/components/ideas/MediaGallery';
 import { VideoEmbed } from '@/components/ideas/VideoEmbed';
 import { AttachmentList } from '@/components/ideas/AttachmentList';
+import { StageProgress } from '@/components/ideas/StageProgress';
+import { StageReviewForm } from '@/components/forms/StageReviewForm';
+import { AssignPipeline } from '@/components/admin/AssignPipeline';
 import { prisma } from '@/lib/db';
 import { Role } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -61,10 +64,25 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
     where: { id },
     include: {
       submitter: { select: { id: true, name: true, email: true } },
-      attachments: { orderBy: { displayOrder: 'asc' } }, // Phase 3
+      attachments: { orderBy: { displayOrder: 'asc' } },
       statusHistory: {
         orderBy: { createdAt: 'asc' },
         include: { admin: { select: { id: true, name: true } } },
+      },
+      pipeline: {
+        include: {
+          stages: {
+            orderBy: { stageOrder: 'asc' },
+            include: { reviewer: { select: { id: true, name: true } } },
+          },
+        },
+      },
+      stageReviews: {
+        orderBy: { createdAt: 'asc' },
+        include: {
+          stage: { select: { name: true, stageOrder: true } },
+          reviewer: { select: { id: true, name: true } },
+        },
       },
     },
   });
@@ -72,6 +90,30 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
   if (!displayIdea) notFound();
 
   const canEvaluate = ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'].includes(displayIdea.status);
+  const hasPipeline = !!displayIdea.pipeline;
+  const isAdmin = session.user.role === Role.ADMIN;
+
+  // Phase 5: Find current stage and check if current user is the assigned reviewer
+  const currentStage = hasPipeline
+    ? displayIdea.pipeline!.stages.find((s: { stageOrder: number }) => s.stageOrder === displayIdea.currentStageOrder)
+    : null;
+  const isStageReviewer = currentStage
+    ? (!currentStage.reviewerId || currentStage.reviewerId === session.user.id || isAdmin)
+    : false;
+
+  // Fetch available pipelines for assignment
+  let availablePipelines: { id: string; name: string; stages: { name: string }[] }[] = [];
+  if (isAdmin && canEvaluate && !hasPipeline) {
+    availablePipelines = await prisma.reviewPipeline.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        stages: { select: { name: true }, orderBy: { stageOrder: 'asc' } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
 
   return (
     <>
@@ -134,10 +176,10 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
         {(() => {
           const attachmentsBase = `/api/ideas/${displayIdea.id}/attachments`;
           const imageTypes = new Set(['image/png', 'image/jpeg']);
-          const images    = displayIdea.attachments.filter((a) => imageTypes.has(a.mimeType));
+          const images = displayIdea.attachments.filter((a) => imageTypes.has(a.mimeType));
           const nonImages = displayIdea.attachments.filter((a) => !imageTypes.has(a.mimeType));
-          const rawLinks  = displayIdea.videoLinks as Array<{ url: string; title?: string }> | null;
-          const videos    = rawLinks ?? [];
+          const rawLinks = displayIdea.videoLinks as Array<{ url: string; title?: string }> | null;
+          const videos = rawLinks ?? [];
           if (images.length === 0 && nonImages.length === 0 && videos.length === 0) return null;
           return (
             <section className="mt-6">
@@ -159,8 +201,48 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
           </section>
         )}
 
-        {/* Admin Evaluation */}
-        {canEvaluate && (
+        {/* Phase 5: Pipeline Stage Progress */}
+        {hasPipeline && (
+          <section className="mt-6">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Review Pipeline: {displayIdea.pipeline!.name}
+            </h2>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <StageProgress
+                stages={displayIdea.pipeline!.stages as any}
+                currentStageOrder={displayIdea.currentStageOrder}
+                stageReviews={displayIdea.stageReviews as any}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Phase 5: Stage Review Form (if pipeline active and user is reviewer) */}
+        {hasPipeline && canEvaluate && isStageReviewer && currentStage && displayIdea.status === 'UNDER_REVIEW' && (
+          <section className="mt-8 rounded-lg border border-teal-200 bg-teal-50 p-6">
+            <h2 className="mb-4 text-base font-semibold text-teal-900">Stage Review</h2>
+            <StageReviewForm
+              ideaId={displayIdea.id}
+              stageName={currentStage.name}
+              stageOrder={currentStage.stageOrder}
+            />
+          </section>
+        )}
+
+        {/* Phase 5: Assign Pipeline (admin only, no pipeline yet) */}
+        {isAdmin && canEvaluate && !hasPipeline && availablePipelines.length > 0 && (
+          <section className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h2 className="mb-3 text-sm font-semibold text-gray-700">Multi-Stage Review</h2>
+            <AssignPipeline
+              ideaId={displayIdea.id}
+              currentPipelineId={displayIdea.pipelineId}
+              pipelines={availablePipelines}
+            />
+          </section>
+        )}
+
+        {/* Admin Evaluation — only when no pipeline is assigned */}
+        {canEvaluate && !hasPipeline && (
           <section className="mt-8 rounded-lg border border-blue-200 bg-blue-50 p-6">
             <h2 className="mb-4 text-base font-semibold text-blue-900">Evaluate Idea</h2>
             <EvaluationForm

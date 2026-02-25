@@ -20,11 +20,11 @@ export function Navbar() {
   const user = tabUser ?? (
     nextAuthSession?.user
       ? {
-          id: nextAuthSession.user.id ?? '',
-          email: nextAuthSession.user.email ?? '',
-          name: nextAuthSession.user.name ?? '',
-          role: nextAuthSession.user.role ?? Role.USER,
-        }
+        id: nextAuthSession.user.id ?? '',
+        email: nextAuthSession.user.email ?? '',
+        name: nextAuthSession.user.name ?? '',
+        role: nextAuthSession.user.role ?? Role.USER,
+      }
       : null
   );
 
@@ -96,6 +96,14 @@ export function Navbar() {
                     className="text-sm font-medium text-blue-600 hover:text-blue-700"
                   >
                     Manage Users
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin/pipelines"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    Pipelines
                   </Link>
                 )}
               </>

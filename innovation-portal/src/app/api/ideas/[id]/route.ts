@@ -36,6 +36,21 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           admin: { select: { name: true } },
         },
       },
+      pipeline: {
+        include: {
+          stages: {
+            orderBy: { stageOrder: 'asc' },
+            include: { reviewer: { select: { id: true, name: true } } },
+          },
+        },
+      },
+      stageReviews: {
+        orderBy: { createdAt: 'asc' },
+        include: {
+          stage: { select: { name: true, stageOrder: true } },
+          reviewer: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -98,6 +113,21 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           orderBy: { createdAt: 'asc' },
           include: { admin: { select: { name: true } } },
         },
+        pipeline: {
+          include: {
+            stages: {
+              orderBy: { stageOrder: 'asc' },
+              include: { reviewer: { select: { id: true, name: true } } },
+            },
+          },
+        },
+        stageReviews: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            stage: { select: { name: true, stageOrder: true } },
+            reviewer: { select: { id: true, name: true } },
+          },
+        },
       },
     });
     return NextResponse.json(refreshed);
@@ -133,12 +163,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // Path D: Submit draft — DRAFT → SUBMITTED (full validation)
     if (body.submitDraft === true) {
       const validationData = {
-        title:       body.title       ?? idea.title,
+        title: body.title ?? idea.title,
         description: body.description ?? idea.description,
-        category:    body.category    ?? idea.category,
-        visibility:  body.visibility  ?? idea.visibility,
-        metadata:    body.metadata    ?? (idea.metadata as Record<string, string> | undefined),
-        videoLinks:  body.videoLinks  ??
+        category: body.category ?? idea.category,
+        visibility: body.visibility ?? idea.visibility,
+        metadata: body.metadata ?? (idea.metadata as Record<string, string> | undefined),
+        videoLinks: body.videoLinks ??
           (idea.videoLinks as Array<{ url: string; title?: string }> | undefined) ?? [],
       };
       const validation = ideaSubmitSchema.safeParse(validationData);
@@ -163,12 +193,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         where: { id },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: {
-          status:      'SUBMITTED',
-          title:       validation.data.title,
+          status: 'SUBMITTED',
+          title: validation.data.title,
           description: validation.data.description,
-          category:    validation.data.category as never,
-          visibility:  validation.data.visibility as never,
-          metadata:    validation.data.metadata ?? undefined,
+          category: validation.data.category as never,
+          visibility: validation.data.visibility as never,
+          metadata: validation.data.metadata ?? undefined,
           videoLinks:
             validation.data.videoLinks && validation.data.videoLinks.length > 0
               ? validation.data.videoLinks
@@ -199,11 +229,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       const updated = await prisma.idea.update({
         where: { id },
         data: {
-          title:       parsed.data.title,
+          title: parsed.data.title,
           description: parsed.data.description,
-          category:    parsed.data.category as never,
-          visibility:  parsed.data.visibility as never,
-          metadata:    parsed.data.metadata ?? undefined,
+          category: parsed.data.category as never,
+          visibility: parsed.data.visibility as never,
+          metadata: parsed.data.metadata ?? undefined,
           videoLinks:
             parsed.data.videoLinks && parsed.data.videoLinks.length > 0
               ? parsed.data.videoLinks
@@ -241,6 +271,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       REJECTED: ['UNDER_REVIEW'],
       INSPECTING: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
     };
+
+    // Phase 5: Block direct Accept/Reject if idea has a pipeline
+    if (idea.pipelineId && (newStatus === 'ACCEPTED' || newStatus === 'REJECTED')) {
+      return NextResponse.json(
+        {
+          error: 'This idea is in multi-stage review. Use the stage review workflow instead.',
+        },
+        { status: 422 }
+      );
+    }
 
     const allowed = VALID_TRANSITIONS[idea.status] ?? [];
     if (!allowed.includes(newStatus)) {

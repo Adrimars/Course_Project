@@ -46,6 +46,12 @@ export enum JoinRequestStatus {
   REJECTED = 'REJECTED',
 }
 
+export enum StageDecision {
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  RETURNED = 'RETURNED',
+}
+
 // ─── Entity Types ─────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -133,6 +139,51 @@ export interface JoinRequestInfo {
   };
 }
 
+// ─── Phase 5: Multi-Stage Review Types ────────────────────────────────────────
+
+export interface ReviewStageInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  stageOrder: number;
+  reviewer: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export interface ReviewPipelineInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  stages: ReviewStageInfo[];
+}
+
+export interface StageReviewInfo {
+  id: string;
+  stageId: string;
+  decision: StageDecision;
+  feedback: string;
+  createdAt: Date;
+  stage: {
+    name: string;
+    stageOrder: number;
+  };
+  reviewer: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface PipelineWithStages extends ReviewPipelineInfo {
+  createdAt: Date;
+  updatedAt: Date;
+  _count?: {
+    ideas: number;
+  };
+}
+
 export interface IdeaWithRelations {
   id: string;
   title: string;
@@ -151,6 +202,11 @@ export interface IdeaWithRelations {
   } | null;
   attachments: AttachmentInfo[]; // Phase 3: multiple attachments
   statusHistory: StatusHistoryEntry[];
+  // Phase 5: multi-stage review
+  pipelineId: string | null;
+  currentStageOrder: number;
+  pipeline: ReviewPipelineInfo | null;
+  stageReviews: StageReviewInfo[];
 }
 
 export interface IdeaSummary {
@@ -166,6 +222,9 @@ export interface IdeaSummary {
   } | null;
   /** Phase 3: one entry per attachment; count tells how many files are attached */
   attachments: Array<{ id: string }>;
+  /** Phase 5: pipeline tracking */
+  pipelineId: string | null;
+  currentStageOrder: number;
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

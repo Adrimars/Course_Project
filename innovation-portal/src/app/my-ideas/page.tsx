@@ -6,6 +6,7 @@ import { IdeaList } from '@/components/ideas/IdeaList';
 import { prisma } from '@/lib/db';
 import { getPaginationParams, buildPaginationMeta } from '@/lib/utils';
 import { Role, IdeaStatus } from '@/types';
+import { IdeaStatus as PrismaStatus } from '@prisma/client';
 import Link from 'next/link';
 
 interface MyIdeasPageProps {
@@ -32,9 +33,9 @@ export default async function MyIdeasPage({ searchParams }: MyIdeasPageProps) {
   let whereClause: Record<string, unknown> = {};
 
   if (activeTab === 'submitted') {
-    whereClause = { submitterId: userId, status: { not: 'DRAFT' as const } };
+    whereClause = { submitterId: userId, status: { not: PrismaStatus.DRAFT } };
   } else if (activeTab === 'drafts') {
-    whereClause = { submitterId: userId, status: 'DRAFT' as const };
+    whereClause = { submitterId: userId, status: PrismaStatus.DRAFT };
   } else if (activeTab === 'assigned') {
     // Ideas assigned to this user (via Assignment model)
     whereClause = {

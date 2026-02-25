@@ -233,6 +233,68 @@ async function main() {
   });
 
   console.log('  ✓ Status history entries created');
+
+  // ── Phase 5: Review Pipelines ─────────────────────────────────────────────
+
+  const pipeline = await prisma.reviewPipeline.upsert({
+    where: { id: 'seed-pipeline-1' },
+    update: {},
+    create: {
+      id: 'seed-pipeline-1',
+      name: 'Standard Review',
+      description: 'Three-stage review process for standard ideas.',
+      stages: {
+        create: [
+          {
+            id: 'seed-stage-1',
+            name: 'Initial Screen',
+            description: 'Quick feasibility and relevance check',
+            stageOrder: 1,
+            reviewerId: admin.id,
+          },
+          {
+            id: 'seed-stage-2',
+            name: 'Technical Review',
+            description: 'In-depth technical assessment',
+            stageOrder: 2,
+            reviewerId: inspector.id,
+          },
+          {
+            id: 'seed-stage-3',
+            name: 'Executive Approval',
+            description: 'Final approval by leadership',
+            stageOrder: 3,
+            reviewerId: admin.id,
+          },
+        ],
+      },
+    },
+  });
+
+  // Assign pipeline to idea2 (UNDER_REVIEW) and set stage to 2
+  await prisma.idea.update({
+    where: { id: 'seed-idea-2' },
+    data: {
+      pipelineId: pipeline.id,
+      currentStageOrder: 2,
+    },
+  });
+
+  // Add a stage review for stage 1 (approved)
+  await prisma.stageReview.upsert({
+    where: { id: 'seed-sr-1' },
+    update: {},
+    create: {
+      id: 'seed-sr-1',
+      ideaId: idea2.id,
+      stageId: 'seed-stage-1',
+      reviewerId: admin.id,
+      decision: 'APPROVED',
+      feedback: 'Good idea, passes initial screening. Moving to technical review.',
+    },
+  });
+
+  console.log(`  ✓ Pipeline: ${pipeline.name} (${pipeline.id})`);
   console.log('\n✅  Seed complete!\n');
   console.log('   Admin:     admin@epam.com       / Admin123!');
   console.log('   Inspector: inspector@epam.com   / Inspector123!');
