@@ -39,16 +39,16 @@
 - [ ] Manual test: two tabs with different accounts
 
 ### 1.2 — RBAC: Inspector Role + Admin Panel
-- [ ] Add `INSPECTOR` to Prisma `Role` enum + migrate
-- [ ] Add `INSPECTING` to Prisma `IdeaStatus` enum + migrate
-- [ ] Update `src/types/index.ts` enums
-- [ ] Seed inspector user (`inspector@example.com` / `Inspector123!`)
-- [ ] Document test credentials in README
-- [ ] Update role management API to support 3 roles
-- [ ] Inspector: see all ideas (incl. private), edit/delete files, set INSPECTING mode
-- [ ] INSPECTING mode: hide from users, show in inspector's "My Ideas"
-- [ ] Admin: all inspector perms + grant/revoke roles
-- [ ] Update Navbar for role-specific links
+- [x] Add `INSPECTOR` to Prisma `Role` enum + migrate
+- [x] Add `INSPECTING` to Prisma `IdeaStatus` enum + migrate
+- [x] Update `src/types/index.ts` enums
+- [x] Seed inspector user (`inspector@epam.com` / `Inspector123!`)
+- [x] Document test credentials in README
+- [x] Update role management API to support 3 roles
+- [x] Inspector: see all ideas (incl. private), set INSPECTING mode
+- [x] INSPECTING mode: hide from users, show in inspector's "My Ideas"
+- [x] Admin: all inspector perms + grant/revoke roles
+- [x] Update Navbar for role-specific links
 
 ### 1.3 — Dashboard Analytics
 - [x] Remove individual idea listings from `/dashboard`
@@ -71,11 +71,13 @@
 - [x] UI: assignment cards + accept/decline buttons
 
 ### 1.6 — Project Join Requests
-- [ ] Add `JoinRequest` model or extend Assignment
-- [ ] API: `POST /api/ideas/[id]/join-request`
-- [ ] API: `PATCH /api/join-requests/[id]` (approve/reject)
-- [ ] "Request to Join" button on idea detail
-- [ ] Pending requests in owner's "My Ideas"
+- [x] Add `JoinRequest` model to Prisma schema + migration
+- [x] API: `POST /api/ideas/[id]/join-request`
+- [x] API: `GET /api/ideas/[id]/join-request` (own status / all pending for owner)
+- [x] API: `PATCH /api/join-requests/[id]` (approve/reject by owner or admin)
+- [x] "Request to Join" button on idea detail (`JoinRequestButton` component)
+- [x] Join requests panel for idea owner / admin (`JoinRequestsPanel` component)
+- [x] On approve: auto-creates Assignment so user sees idea in "My Ideas → Assigned"
 
 ### 1.7 — "My Ideas" Tab
 - [x] Create `/my-ideas` page

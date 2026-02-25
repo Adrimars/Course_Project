@@ -9,6 +9,8 @@ import { EvaluationForm } from '@/components/forms/EvaluationForm';
 import { VisibilityToggle } from '@/components/ideas/VisibilityToggle';
 import { NoteList } from '@/components/ideas/NoteList';
 import { AssignmentSection } from '@/components/ideas/AssignmentSection';
+import { JoinRequestButton } from '@/components/ideas/JoinRequestButton';
+import { JoinRequestsPanel } from '@/components/ideas/JoinRequestsPanel';
 import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
 import { formatDate, formatFileSize } from '@/lib/utils';
@@ -243,6 +245,18 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
               isAdmin={isAdmin}
             />
           </div>
+        )}
+
+        {/* 10. Join request button (non-owner, non-private ideas) */}
+        {!isOwner && displayIdea.visibility !== 'PRIVATE' && (
+          <div className="mt-4">
+            <JoinRequestButton ideaId={displayIdea.id} isOwner={isOwner} />
+          </div>
+        )}
+
+        {/* 11. Pending join requests panel (idea owner + admins) */}
+        {(isOwner || isAdmin) && (
+          <JoinRequestsPanel ideaId={displayIdea.id} />
         )}
       </main>
     </>

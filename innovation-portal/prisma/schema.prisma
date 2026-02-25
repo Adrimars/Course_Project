@@ -36,6 +36,12 @@ enum AssignmentStatus {
   DECLINED
 }
 
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum IdeaCategory {
   TECHNOLOGY
   PROCESS
@@ -67,6 +73,7 @@ model User {
   notes         Note[]
   assignedTo    Assignment[]    @relation("assignee")
   assignedBy    Assignment[]    @relation("assigner")
+  joinRequests  JoinRequest[]
 
   // NextAuth relations
   accounts Account[]
@@ -93,6 +100,7 @@ model Idea {
   statusHistory StatusHistory[]
   notes         Note[]
   assignments   Assignment[]
+  joinRequests  JoinRequest[]
 
   @@map("ideas")
 }
@@ -159,6 +167,23 @@ model Assignment {
   assignee User @relation("assignee", fields: [assigneeId], references: [id])
 
   @@map("assignments")
+}
+
+model JoinRequest {
+  id        String            @id @default(cuid())
+  ideaId    String
+  userId    String
+  message   String?           @db.VarChar(500)
+  status    JoinRequestStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relations
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, userId]) // One active request per user per idea
+  @@map("join_requests")
 }
 
 // ─── NextAuth Models ─────────────────────────────────────────────────────────

@@ -39,6 +39,12 @@ export enum AssignmentStatus {
   DECLINED = 'DECLINED',
 }
 
+export enum JoinRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 // ─── Entity Types ─────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -97,6 +103,24 @@ export interface AssignmentInfo {
     id: string;
     name: string;
     email: string;
+  };
+}
+
+export interface JoinRequestInfo {
+  id: string;
+  ideaId: string;
+  message: string | null;
+  status: JoinRequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  idea?: {
+    id: string;
+    title: string;
   };
 }
 
