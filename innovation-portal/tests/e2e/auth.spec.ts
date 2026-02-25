@@ -19,15 +19,15 @@ test.describe('Authentication flow (US1)', () => {
     // ── 2. Fill registration form ─────────────────────────────────────────────
     await page.getByLabel('Full Name').fill(testName);
     await page.getByLabel('Email Address').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByRole('textbox', { name: 'Password' }).fill(testPassword);
     await page.getByRole('button', { name: 'Create Account' }).click();
 
     // ── 3. Should redirect to /login after successful registration ────────────
     await expect(page).toHaveURL('/login');
 
-    // ── 4. Fill login form ────────────────────────────────────────────────────
+    // ── 4. Fill login form ────────────────────────────────────────────
     await page.getByLabel('Email Address').fill(testEmail);
-    await page.getByLabel('Password').fill(testPassword);
+    await page.getByRole('textbox', { name: 'Password' }).fill(testPassword);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // ── 5. Should land on dashboard ───────────────────────────────────────────
@@ -63,7 +63,7 @@ test.describe('Authentication flow (US1)', () => {
     await page.goto('/register');
     await page.getByLabel('Full Name').fill('Test');
     await page.getByLabel('Email Address').fill('v@test.com');
-    await page.getByLabel('Password').fill('weak');
+    await page.getByRole('textbox', { name: 'Password' }).fill('weak');
     await page.getByRole('button', { name: 'Create Account' }).click();
 
     // Should show inline validation errors, not navigate away
