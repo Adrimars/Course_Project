@@ -7,27 +7,26 @@
 ## Phase 0: Bug Fixes 🐛
 
 ### 🔴 Critical
-- [ ] **BUG-1**: Fix race condition in last-admin demotion
-  - [ ] Wrap count + update in serializable `$transaction` in `src/app/api/users/[id]/route.ts`
+- [x] **BUG-1**: Fix race condition in last-admin demotion
+  - [x] Wrap count + update in serializable `$transaction` in `src/app/api/users/[id]/route.ts`
 
 ### 🟠 High
-- [ ] **BUG-2**: Fix MIME type validation — use `file-type` magic bytes
-  - [ ] In `src/app/api/ideas/route.ts`, detect MIME from buffer instead of `file.type`
+- [x] **BUG-2**: Fix MIME type validation — use `file-type` magic bytes
+  - [x] In `src/app/api/ideas/route.ts`, detect MIME from buffer instead of `file.type`
 
-- [ ] **BUG-3**: Make auto-transition idempotent in SSR pages
-  - [ ] Fix `src/app/ideas/[id]/page.tsx`: use `updateMany` + conditional history create
-  - [ ] Fix `src/app/admin/[id]/page.tsx`: same pattern
+- [x] **BUG-3**: Make auto-transition idempotent in SSR pages
+  - [x] Fix `src/app/ideas/[id]/page.tsx`: use `updateMany` + conditional history create
+  - [x] Fix `src/app/admin/[id]/page.tsx`: same pattern
 
 ### 🟡 Medium
-- [ ] **BUG-4**: Fix `.replace('_', ' ')` → `.replace(/_/g, ' ')` in `IdeaCard.tsx`
-- [ ] **BUG-5**: Admin status filter + pagination preserve query params
-  - [ ] Update `basePath` in `src/app/admin/page.tsx` to include status filter
-- [ ] **BUG-6**: Add status transition rules + `INSPECTING` status to validation schema
-  - [ ] Add `VALID_TRANSITIONS` map in `src/app/api/ideas/[id]/route.ts`
-  - [ ] Add `INSPECTING` to `IdeaStatusValues` in `src/lib/validations/idea.ts`
-  - [ ] Update test: `tests/unit/validations/idea.test.ts`
-- [ ] **BUG-7**: Fix pagination URL construction in `IdeaList.tsx`
-  - [ ] Add separator logic for `?` vs `&`
+- [x] **BUG-4**: Fix `.replace('_', ' ')` → `.replace(/_/g, ' ')` in `IdeaCard.tsx`
+- [x] **BUG-5**: Admin status filter + pagination preserve query params
+  - [x] Update `basePath` in `src/app/admin/page.tsx` to include status filter
+- [x] **BUG-6**: Add status transition rules + `INSPECTING` status to validation schema
+  - [x] Add `VALID_TRANSITIONS` map in `src/app/api/ideas/[id]/route.ts`
+  - [x] Add `INSPECTING` to `IdeaStatusValues` in `src/lib/validations/idea.ts`
+- [x] **BUG-7**: Fix pagination URL construction in `IdeaList.tsx`
+  - [x] Add separator logic for `?` vs `&`
 
 ---
 
@@ -52,24 +51,24 @@
 - [ ] Update Navbar for role-specific links
 
 ### 1.3 — Dashboard Analytics
-- [ ] Remove individual idea listings from `/dashboard`
-- [ ] Add status aggregate query (`groupBy`)
-- [ ] Create `AnalyticsDashboard` component with percentage breakdowns
-- [ ] Style with progress bars / colored cards
+- [x] Remove individual idea listings from `/dashboard`
+- [x] Add status aggregate query (`groupBy`)
+- [x] Create `AnalyticsDashboard` component with percentage breakdowns
+- [x] Style with progress bars / colored cards
 
 ### 1.4 — Notes System
-- [ ] Add `Note` model (personal + collaborative types) to Prisma schema
-- [ ] API: `POST/GET /api/ideas/[id]/notes`
-- [ ] Personal notes: only visible to author
-- [ ] Collaborative notes: visible to collaborators + inspectors + admins
-- [ ] UI: `NoteForm` + `NoteList` on idea detail page
+- [x] Add `Note` model (personal + collaborative types) to Prisma schema
+- [x] API: `POST/GET /api/ideas/[id]/notes`
+- [x] Personal notes: only visible to author
+- [x] Collaborative notes: visible to collaborators + inspectors + admins
+- [x] UI: `NoteForm` + `NoteList` on idea detail page
 
 ### 1.5 — Task Assignment System
-- [ ] Add `Assignment` model to Prisma schema
-- [ ] API: `POST /api/ideas/[id]/assignments` (admin only)
-- [ ] API: `PATCH /api/assignments/[id]` (accept/decline)
-- [ ] Assigned ideas appear in user's "My Ideas"
-- [ ] UI: assignment cards + accept/decline buttons
+- [x] Add `Assignment` model to Prisma schema
+- [x] API: `POST /api/ideas/[id]/assignments` (admin only)
+- [x] API: `PATCH /api/assignments/[id]` (accept/decline)
+- [x] Assigned ideas appear in user's "My Ideas"
+- [x] UI: assignment cards + accept/decline buttons
 
 ### 1.6 — Project Join Requests
 - [ ] Add `JoinRequest` model or extend Assignment
@@ -79,17 +78,18 @@
 - [ ] Pending requests in owner's "My Ideas"
 
 ### 1.7 — "My Ideas" Tab
-- [ ] Create `/my-ideas` page
-- [ ] USER: own UNDER_REVIEW ideas + assigned ideas
-- [ ] INSPECTOR/ADMIN: additionally INSPECTING ideas
-- [ ] Add "My Ideas" link to Navbar
+- [x] Create `/my-ideas` page
+- [x] USER: own UNDER_REVIEW ideas + assigned ideas
+- [x] INSPECTOR/ADMIN: additionally INSPECTING ideas
+- [x] Add "My Ideas" link to Navbar
 
 ### 1.8 — Search & Filter
-- [ ] Add search bar (title + description `ILIKE`)
-- [ ] Filter dropdowns: status, category, visibility
-- [ ] Create `SearchAndFilter` component
-- [ ] Update `GET /api/ideas` with `search`, `status`, `category` params
-- [ ] Preserve filters in URL query params
+- [x] Add search bar (title + description `ILIKE`)
+- [x] Filter dropdowns: status, category, visibility
+- [x] Create `SearchAndFilter` component
+- [x] Update `GET /api/ideas` with `search`, `status`, `category` params
+- [x] Preserve filters in URL query params
+- [x] Browsable `/ideas` page with search & filter
 
 ---
 

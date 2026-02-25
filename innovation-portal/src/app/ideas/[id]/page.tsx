@@ -7,6 +7,8 @@ import { StatusBadge } from '@/components/ideas/StatusBadge';
 import { StatusHistory } from '@/components/ideas/StatusHistory';
 import { EvaluationForm } from '@/components/forms/EvaluationForm';
 import { VisibilityToggle } from '@/components/ideas/VisibilityToggle';
+import { NoteList } from '@/components/ideas/NoteList';
+import { AssignmentSection } from '@/components/ideas/AssignmentSection';
 import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
 import { formatDate, formatFileSize } from '@/lib/utils';
@@ -221,6 +223,26 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
               currentUpdatedAt={displayIdea.updatedAt.toISOString()}
             />
           </section>
+        )}
+
+        {/* 8. Notes (all authenticated users who can access this idea) */}
+        <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+          <NoteList
+            ideaId={displayIdea.id}
+            currentUserId={session.user.id}
+            canCollaborate={isPrivileged}
+          />
+        </div>
+
+        {/* 9. Assignments (admin/inspector view) */}
+        {isPrivileged && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6">
+            <AssignmentSection
+              ideaId={displayIdea.id}
+              currentUserId={session.user.id}
+              isAdmin={isAdmin}
+            />
+          </div>
         )}
       </main>
     </>

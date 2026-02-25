@@ -43,6 +43,12 @@ export function Navbar() {
               My Ideas
             </Link>
             <Link
+              href="/ideas"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Browse Ideas
+            </Link>
+            <Link
               href="/ideas/new"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
