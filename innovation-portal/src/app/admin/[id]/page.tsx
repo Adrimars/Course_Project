@@ -17,7 +17,8 @@ interface AdminIdeaPageProps {
 export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
   const session = await getServerSession(authOptions);
   if (!session) redirect('/login');
-  if (session.user.role !== Role.ADMIN) redirect('/dashboard');
+  const isPrivileged = session.user.role === Role.ADMIN || session.user.role === Role.INSPECTOR;
+  if (!isPrivileged) redirect('/dashboard');
 
   const { id } = await params;
 

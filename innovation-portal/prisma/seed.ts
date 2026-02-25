@@ -4,6 +4,7 @@
  *
  * Creates:
  *   • admin@epam.com / Admin123!  → role ADMIN
+ *   • inspector@epam.com / Inspector123!  → role INSPECTOR
  *   • user1@epam.com / User1234!  → role USER
  *   • user2@epam.com / User5678!  → role USER
  *   • 5 sample ideas in various states
@@ -32,6 +33,17 @@ async function main() {
     },
   });
 
+  const inspector = await prisma.user.upsert({
+    where: { email: 'inspector@epam.com' },
+    update: {},
+    create: {
+      name: 'Inspector User',
+      email: 'inspector@epam.com',
+      hashedPassword: hashSync('Inspector123!', 12),
+      role: 'INSPECTOR',
+    },
+  });
+
   const user1 = await prisma.user.upsert({
     where: { email: 'user1@epam.com' },
     update: {},
@@ -54,7 +66,7 @@ async function main() {
     },
   });
 
-  console.log(`  ✓ Users: ${admin.email}, ${user1.email}, ${user2.email}`);
+  console.log(`  ✓ Users: ${admin.email}, ${inspector.email}, ${user1.email}, ${user2.email}`);
 
   // ── Ideas ──────────────────────────────────────────────────────────────────
 
@@ -222,9 +234,10 @@ async function main() {
 
   console.log('  ✓ Status history entries created');
   console.log('\n✅  Seed complete!\n');
-  console.log('   Admin:  admin@epam.com   / Admin123!');
-  console.log('   User 1: user1@epam.com   / User1234!');
-  console.log('   User 2: user2@epam.com   / User5678!\n');
+  console.log('   Admin:     admin@epam.com       / Admin123!');
+  console.log('   Inspector: inspector@epam.com   / Inspector123!');
+  console.log('   User 1:    user1@epam.com       / User1234!');
+  console.log('   User 2:    user2@epam.com       / User5678!\n');
 }
 
 main()

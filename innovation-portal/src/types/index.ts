@@ -2,6 +2,7 @@
 
 export enum Role {
   USER = 'USER',
+  INSPECTOR = 'INSPECTOR',
   ADMIN = 'ADMIN',
 }
 
@@ -10,6 +11,7 @@ export enum IdeaStatus {
   UNDER_REVIEW = 'UNDER_REVIEW',
   ACCEPTED = 'ACCEPTED',
   REJECTED = 'REJECTED',
+  INSPECTING = 'INSPECTING',
 }
 
 export enum IdeaCategory {
@@ -24,6 +26,17 @@ export enum IdeaCategory {
 export enum Visibility {
   PUBLIC = 'PUBLIC',
   PRIVATE = 'PRIVATE',
+}
+
+export enum NoteType {
+  PERSONAL = 'PERSONAL',
+  COLLABORATIVE = 'COLLABORATIVE',
+}
+
+export enum AssignmentStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  DECLINED = 'DECLINED',
 }
 
 // ─── Entity Types ─────────────────────────────────────────────────────────────
@@ -52,6 +65,39 @@ export interface StatusHistoryEntry {
   admin: {
     name: string;
   } | null;
+}
+
+export interface NoteInfo {
+  id: string;
+  content: string;
+  type: NoteType;
+  createdAt: Date;
+  updatedAt: Date;
+  user: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface AssignmentInfo {
+  id: string;
+  ideaId: string;
+  status: AssignmentStatus;
+  createdAt: Date;
+  idea?: {
+    id: string;
+    title: string;
+    status: IdeaStatus;
+  };
+  assigner: {
+    id: string;
+    name: string;
+  };
+  assignee: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface IdeaWithRelations {

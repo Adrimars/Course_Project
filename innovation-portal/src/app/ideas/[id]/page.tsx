@@ -30,16 +30,22 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
   if (!stub) notFound();
 
   const isAdmin = session.user.role === Role.ADMIN;
+  const isInspector = session.user.role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
   const isOwner = stub.submitterId === session.user.id;
 
-  // spec FR-007b: PRIVATE idea only visible to submitter or admin
-  if (stub.visibility === Visibility.PRIVATE && !isOwner && !isAdmin) {
+  // spec FR-007b: PRIVATE idea only visible to submitter, admin, or inspector
+  // INSPECTING ideas are hidden from regular users
+  if (
+    (stub.visibility === Visibility.PRIVATE && !isOwner && !isPrivileged) ||
+    (stub.status === 'INSPECTING' && !isPrivileged)
+  ) {
     return (
       <>
         <Navbar />
         <main className="mx-auto max-w-3xl px-4 py-16 text-center">
           <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
-          <p className="mt-2 text-gray-500">This idea is private.</p>
+          <p className="mt-2 text-gray-500">This idea is not accessible.</p>
           <Link href="/dashboard" className="mt-4 inline-block text-blue-600 hover:underline">
             ← Back to Dashboard
           </Link>
@@ -51,7 +57,7 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
   // spec FR-008: auto-transition SUBMITTED → UNDER_REVIEW on admin view
   // BUG-3 FIX: Use updateMany with status guard to prevent duplicate
   // StatusHistory entries from concurrent page loads.
-  if (isAdmin && stub.status === 'SUBMITTED') {
+  if (isPrivileged && stub.status === 'SUBMITTED') {
     await prisma.$transaction(async (tx) => {
       const updated = await tx.idea.updateMany({
         where: { id, status: 'SUBMITTED' },

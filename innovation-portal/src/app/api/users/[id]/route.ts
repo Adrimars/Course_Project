@@ -8,7 +8,7 @@ import { z } from 'zod';
 type RouteParams = { params: Promise<{ id: string }> };
 
 const roleUpdateSchema = z.object({
-  role: z.enum(['USER', 'ADMIN']),
+  role: z.enum(['USER', 'INSPECTOR', 'ADMIN']),
 });
 
 /**

@@ -13,6 +13,7 @@ datasource db {
 
 enum Role {
   USER
+  INSPECTOR
   ADMIN
 }
 
@@ -21,6 +22,18 @@ enum IdeaStatus {
   UNDER_REVIEW
   ACCEPTED
   REJECTED
+  INSPECTING
+}
+
+enum NoteType {
+  PERSONAL
+  COLLABORATIVE
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
 enum IdeaCategory {
@@ -51,6 +64,9 @@ model User {
   // Relations
   ideas         Idea[]          @relation("submitter")
   statusChanges StatusHistory[] @relation("admin")
+  notes         Note[]
+  assignedTo    Assignment[]    @relation("assignee")
+  assignedBy    Assignment[]    @relation("assigner")
 
   // NextAuth relations
   accounts Account[]
@@ -74,6 +90,8 @@ model Idea {
   submitter     User?           @relation("submitter", fields: [submitterId], references: [id], onDelete: SetNull)
   attachment    Attachment?
   statusHistory StatusHistory[]
+  notes         Note[]
+  assignments   Assignment[]
 
   @@map("ideas")
 }
@@ -107,6 +125,39 @@ model StatusHistory {
   admin User? @relation("admin", fields: [adminId], references: [id], onDelete: SetNull)
 
   @@map("status_history")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  ideaId    String
+  userId    String
+  content   String   @db.VarChar(5000)
+  type      NoteType @default(PERSONAL)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+model Assignment {
+  id         String           @id @default(cuid())
+  ideaId     String
+  assignerId String
+  assigneeId String
+  status     AssignmentStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  // Relations
+  idea     Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  assigner User @relation("assigner", fields: [assignerId], references: [id])
+  assignee User @relation("assignee", fields: [assigneeId], references: [id])
+
+  @@map("assignments")
 }
 
 // ─── NextAuth Models ─────────────────────────────────────────────────────────

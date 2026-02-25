@@ -24,14 +24,23 @@ export async function GET(req: NextRequest) {
   const { skip, take } = getPaginationParams(page);
 
   const isAdmin = session.user.role === Role.ADMIN;
+  const isInspector = session.user.role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
 
-  // spec FR-007a: Visibility filter — admin sees all; user sees PUBLIC + own PRIVATE
-  const whereClause = isAdmin
+  // Visibility rules:
+  // - Admin/Inspector see ALL ideas
+  // - Regular users see PUBLIC + own PRIVATE, but NEVER INSPECTING
+  const whereClause = isPrivileged
     ? {}
     : {
-      OR: [
-        { visibility: 'PUBLIC' as const },
-        { submitterId: session.user.id },
+      AND: [
+        { status: { not: 'INSPECTING' as const } },
+        {
+          OR: [
+            { visibility: 'PUBLIC' as const },
+            { submitterId: session.user.id },
+          ],
+        },
       ],
     };
 

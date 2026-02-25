@@ -10,7 +10,13 @@ export function Navbar() {
 
   if (!session) return null;
 
-  const isAdmin = session.user.role === Role.ADMIN;
+  const role = session.user.role;
+  const isAdmin = role === Role.ADMIN;
+  const isInspector = role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
+
+  const roleLabel =
+    role === Role.ADMIN ? 'Administrator' : role === Role.INSPECTOR ? 'Inspector' : 'User';
 
   return (
     <nav className="border-b border-gray-200 bg-white shadow-sm">
@@ -31,25 +37,33 @@ export function Navbar() {
               Dashboard
             </Link>
             <Link
+              href="/my-ideas"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              My Ideas
+            </Link>
+            <Link
               href="/ideas/new"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
               Submit Idea
             </Link>
-            {isAdmin && (
+            {isPrivileged && (
               <>
                 <Link
                   href="/admin"
                   className="text-sm font-medium text-blue-600 hover:text-blue-700"
                 >
-                  Admin Panel
+                  {isAdmin ? 'Admin Panel' : 'Inspector Panel'}
                 </Link>
-                <Link
-                  href="/admin/users"
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                >
-                  Manage Users
-                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin/users"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    Manage Users
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -59,9 +73,7 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           <div className="text-right text-sm">
             <p className="font-medium text-gray-900">{session.user.name}</p>
-            <p className="text-xs text-gray-500">
-              {isAdmin ? 'Administrator' : 'User'}
-            </p>
+            <p className="text-xs text-gray-500">{roleLabel}</p>
           </div>
           <Button
             variant="ghost"

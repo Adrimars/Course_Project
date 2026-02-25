@@ -1,0 +1,19 @@
+# Root level gitignore for Course_Project
+
+# Dependencies
+node_modules/
+
+# Package lock files
+package-lock.json
+
+# Environment variables
+.env
+.env*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

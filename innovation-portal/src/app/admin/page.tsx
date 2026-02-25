@@ -14,7 +14,7 @@ interface AdminPageProps {
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const session = await getServerSession(authOptions);
   if (!session) redirect('/login');
-  if (session.user.role !== Role.ADMIN) redirect('/dashboard');
+  if (session.user.role !== Role.ADMIN && session.user.role !== Role.INSPECTOR) redirect('/dashboard');
 
   const { page: pageParam, status: statusFilter } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? '1', 10));
@@ -70,8 +70,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               key={s}
               href={`/admin?status=${s}`}
               className={`rounded-full px-3 py-1 text-xs font-medium ${statusFilter === s
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
             >
               {s.replace(/_/g, ' ')}

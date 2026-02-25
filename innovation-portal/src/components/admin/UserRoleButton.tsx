@@ -5,28 +5,38 @@ import { useRouter } from 'next/navigation';
 
 interface UserRoleButtonProps {
   userId: string;
-  currentRole: 'USER' | 'ADMIN';
+  currentRole: 'USER' | 'INSPECTOR' | 'ADMIN';
   isSelf: boolean;
 }
+
+const ROLE_ORDER: ('USER' | 'INSPECTOR' | 'ADMIN')[] = ['USER', 'INSPECTOR', 'ADMIN'];
+
+const ROLE_LABELS: Record<string, string> = {
+  USER: 'User',
+  INSPECTOR: 'Inspector',
+  ADMIN: 'Admin',
+};
 
 export function UserRoleButton({ userId, currentRole, isSelf }: UserRoleButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
   if (isSelf) {
     return <span className="text-xs text-gray-400 italic">You</span>;
   }
 
-  const isAdmin = currentRole === 'ADMIN';
-  const targetRole = isAdmin ? 'USER' : 'ADMIN';
-  const label = isAdmin ? 'Demote to User' : 'Promote to Admin';
-
-  const handleClick = async () => {
-    if (!confirm(`Are you sure you want to ${isAdmin ? 'demote' : 'promote'} this user?`)) return;
+  const handleRoleChange = async (targetRole: string) => {
+    if (targetRole === currentRole) return;
+    if (!confirm(`Change this user's role to ${ROLE_LABELS[targetRole]}?`)) {
+      setMenuOpen(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setMenuOpen(false);
 
     try {
       const res = await fetch(`/api/users/${userId}`, {
@@ -49,18 +59,32 @@ export function UserRoleButton({ userId, currentRole, isSelf }: UserRoleButtonPr
   };
 
   return (
-    <span className="inline-flex flex-col items-start gap-0.5">
+    <span className="relative inline-flex flex-col items-start gap-0.5">
       <button
-        onClick={handleClick}
+        onClick={() => setMenuOpen(!menuOpen)}
         disabled={loading}
-        className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-          isAdmin
-            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-            : 'bg-green-100 text-green-700 hover:bg-green-200'
-        }`}
+        className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:opacity-50"
       >
-        {loading ? '...' : label}
+        {loading ? '...' : 'Change Role'}
       </button>
+      {menuOpen && (
+        <div className="absolute top-7 left-0 z-10 rounded border border-gray-200 bg-white shadow-lg">
+          {ROLE_ORDER.map((role) => (
+            <button
+              key={role}
+              onClick={() => handleRoleChange(role)}
+              disabled={role === currentRole}
+              className={`block w-full px-4 py-1.5 text-left text-xs transition-colors ${role === currentRole
+                  ? 'bg-gray-100 font-bold text-gray-900'
+                  : 'text-gray-700 hover:bg-gray-50'
+                }`}
+            >
+              {ROLE_LABELS[role]}
+              {role === currentRole && ' ✓'}
+            </button>
+          ))}
+        </div>
+      )}
       {error && <span className="text-xs text-red-500">{error}</span>}
     </span>
   );

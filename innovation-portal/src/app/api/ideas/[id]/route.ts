@@ -105,12 +105,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const body = await req.json();
   const isAdmin = session.user.role === Role.ADMIN;
+  const isInspector = session.user.role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
 
   // ── Path A: Admin evaluation (status + feedback) ──────────────────────────
   if ('status' in body || 'feedback' in body) {
-    if (!isAdmin) {
+    if (!isPrivileged) {
       return NextResponse.json(
-        { error: 'Only admins can change idea status.' },
+        { error: 'Only admins and inspectors can change idea status.' },
         { status: 403 }
       );
     }
