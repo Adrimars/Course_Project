@@ -3,9 +3,10 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { MiniNotifications } from '@/components/dashboard/MiniNotifications';
+import { MiniLeaderboard } from '@/components/dashboard/MiniLeaderboard';
 import { prisma } from '@/lib/db';
 import { Role, IdeaStatus } from '@/types';
-import Link from 'next/link';
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
       ],
     };
 
-  const [statusCounts, totalIdeas, myIdeasCount] = await Promise.all([
+  const [statusCounts, totalIdeas, myIdeasCount, recentActivity, topIdeas] = await Promise.all([
     prisma.idea.groupBy({
       by: ['status'],
       where: visibilityFilter,
@@ -38,22 +39,56 @@ export default async function DashboardPage() {
     }),
     prisma.idea.count({ where: visibilityFilter }),
     prisma.idea.count({ where: { submitterId: session.user.id } }),
+
+    // Notifications: recent status changes relevant to this user
+    prisma.statusHistory.findMany({
+      where: isPrivileged
+        ? {} // admins/inspectors see all activity
+        : { idea: { submitterId: session.user.id } }, // regular users see their own ideas
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        idea: { select: { title: true } },
+        admin: { select: { name: true } },
+      },
+    }),
+
+    // Leaderboard: accepted ideas first, then most recently updated
+    prisma.idea.findMany({
+      where: {
+        ...visibilityFilter,
+        status: { in: ['ACCEPTED', 'UNDER_REVIEW', 'SUBMITTED'] as IdeaStatus[] },
+      },
+      orderBy: [
+        { status: 'asc' }, // ACCEPTED sorts first alphabetically
+        { updatedAt: 'desc' },
+      ],
+      take: 5,
+      include: {
+        submitter: { select: { name: true } },
+      },
+    }),
   ]);
 
-  const quickLinks = [
-    {
-      href: '/notifications',
-      label: '🔔 Notifications',
-      desc: 'Stay updated on your idea activity',
-      highlight: false,
-    },
-    {
-      href: '/leaderboard',
-      label: '🏆 Leaderboard',
-      desc: 'Top-scored and trending ideas',
-      highlight: false,
-    },
-  ];
+  // Transform data for the mini widgets
+  const notificationItems = recentActivity.map((h) => ({
+    id: h.id,
+    ideaTitle: h.idea.title,
+    fromStatus: h.fromStatus,
+    toStatus: h.toStatus,
+    feedback: h.feedback,
+    actorName: h.admin?.name ?? 'System',
+    createdAt: h.createdAt.toISOString(),
+  }));
+
+  const leaderboardItems = topIdeas.map((idea) => ({
+    id: idea.id,
+    title: idea.title,
+    submitterName: idea.submitter?.name ?? 'Unknown',
+    status: idea.status,
+    category: idea.category,
+    updatedAt: idea.updatedAt.toISOString(),
+  }));
 
   return (
     <>
@@ -76,26 +111,10 @@ export default async function DashboardPage() {
           myIdeasCount={myIdeasCount}
         />
 
-        {/* Quick-action links */}
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {quickLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`rounded-lg border p-4 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${link.highlight
-                ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
-                : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}
-            >
-              <p
-                className={`text-sm font-semibold ${link.highlight ? 'text-blue-700' : 'text-gray-900'
-                  }`}
-              >
-                {link.label}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">{link.desc}</p>
-            </Link>
-          ))}
+        {/* Mini Widgets */}
+        <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <MiniNotifications items={notificationItems} />
+          <MiniLeaderboard items={leaderboardItems} />
         </div>
       </main>
     </>
