@@ -4,7 +4,7 @@ test.describe('Admin Evaluation Flow (US5)', () => {
   test.beforeEach(async ({ page }) => {
     // Log in as admin
     await page.goto('/login');
-    await page.getByLabel(/email/i).fill('admin@example.com');
+    await page.getByLabel(/email/i).fill('admin@epam.com');
     await page.getByRole('textbox', { name: /password/i }).fill('Admin123!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });

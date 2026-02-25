@@ -4,7 +4,7 @@ test.describe('Idea Submission Flow (US2)', () => {
   test.beforeEach(async ({ page }) => {
     // Log in as a regular user
     await page.goto('/login');
-    await page.getByLabel(/email/i).fill('user1@example.com');
+    await page.getByLabel(/email/i).fill('user1@epam.com');
     await page.getByRole('textbox', { name: /password/i }).fill('User1234!');
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });
