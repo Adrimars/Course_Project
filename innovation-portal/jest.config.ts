@@ -13,6 +13,7 @@ const config: Config = {
       ],
       moduleNameMapper: {
         '^uuid$': '<rootDir>/__mocks__/uuid.js',
+        '^file-type$': '<rootDir>/__mocks__/file-type.js',
         '^@/(.*)$': '<rootDir>/src/$1',
       },
       setupFiles: ['<rootDir>/tests/integration/setup.ts'],
@@ -29,6 +30,7 @@ const config: Config = {
       testMatch: ['<rootDir>/tests/unit/components/**/*.test.tsx'],
       moduleNameMapper: {
         '^uuid$': '<rootDir>/__mocks__/uuid.js',
+        '^file-type$': '<rootDir>/__mocks__/file-type.js',
         '^@/(.*)$': '<rootDir>/src/$1',
       },
       setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
