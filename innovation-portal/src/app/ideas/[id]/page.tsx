@@ -10,6 +10,7 @@ import { VisibilityToggle } from '@/components/ideas/VisibilityToggle';
 import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
 import { formatDate, formatFileSize } from '@/lib/utils';
+import { CATEGORY_FIELDS } from '@/lib/validations/idea';
 
 interface IdeaDetailPageProps {
   params: Promise<{ id: string }>;
@@ -148,7 +149,32 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
           </p>
         </section>
 
-        {/* 4. Attachment download */}
+        {/* 4. Category-specific metadata (Phase 2) */}
+        {displayIdea.metadata && typeof displayIdea.metadata === 'object' && (() => {
+          const meta = displayIdea.metadata as Record<string, string>;
+          const fields = CATEGORY_FIELDS[displayIdea.category] ?? [];
+          const entries = fields
+            .map((f) => ({ label: f.label, value: meta[f.key] }))
+            .filter((e) => e.value && e.value.trim() !== '');
+          if (entries.length === 0) return null;
+          return (
+            <section className="mt-6 rounded-lg border border-blue-100 bg-blue-50/40 p-4">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-blue-600">
+                {displayIdea.category.replace(/_/g, ' ')} Details
+              </h2>
+              <dl className="space-y-2">
+                {entries.map(({ label, value }) => (
+                  <div key={label} className="grid grid-cols-3 gap-2 text-sm">
+                    <dt className="font-medium text-gray-500 col-span-1">{label}</dt>
+                    <dd className="text-gray-900 col-span-2">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          );
+        })()}
+
+        {/* 5. Attachment download */}
         {displayIdea.attachment && (
           <section className="mt-6">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Attachment</h2>

@@ -89,11 +89,22 @@ export async function POST(req: NextRequest) {
   }
 
   // Extract text fields
+  const rawMetadata = formData.get('metadata');
+  let parsedMetadata: Record<string, string> | undefined;
+  if (rawMetadata && typeof rawMetadata === 'string') {
+    try {
+      parsedMetadata = JSON.parse(rawMetadata);
+    } catch {
+      // ignore malformed metadata
+    }
+  }
+
   const textFields = {
     title: formData.get('title'),
     description: formData.get('description'),
     category: formData.get('category'),
     visibility: formData.get('visibility') ?? 'PUBLIC',
+    metadata: parsedMetadata,
   };
 
   // Validate with Zod
@@ -116,7 +127,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { title, description, category, visibility } = parsed.data;
+  const { title, description, category, visibility, metadata } = parsed.data;
 
   // Handle optional file attachment
   const file = formData.get('attachment');
@@ -179,6 +190,7 @@ export async function POST(req: NextRequest) {
         description,
         category,
         visibility,
+        metadata: metadata ?? undefined,
         submitterId: session.user.id,
         ...(savedFile && {
           attachment: {

@@ -82,6 +82,7 @@ model Idea {
   category    IdeaCategory
   status      IdeaStatus   @default(SUBMITTED)
   visibility  Visibility   @default(PUBLIC)
+  metadata    Json?        // Phase 2: category-specific structured fields
   submitterId String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

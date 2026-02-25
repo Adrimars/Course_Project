@@ -94,8 +94,17 @@
 ---
 
 ## Phase 2: Smart Submission Forms 📝
-- [ ] Dynamic form fields based on category
-- [ ] Auto-suggestions · Form templates
+- [x] Dynamic form fields based on category
+  - [x] `CATEGORY_FIELDS` config in `src/lib/validations/idea.ts` (6 categories × 2 fields each)
+  - [x] Dynamic field rendering in `IdeaSubmitForm` based on `watch('category')`
+  - [x] `metadata Json?` column added to `Idea` model + migration `20260225091352_phase2_idea_metadata`
+  - [x] `POST /api/ideas` stores metadata JSON; detail page renders category-specific fields
+- [x] Auto-suggestions · Form templates
+  - [x] `CATEGORY_TEMPLATES` per-category starter templates (title + description boilerplate)
+  - [x] "Load template" button appears when a category is selected
+- [x] Character count indicators (title: X/200, description: X/5000)
+- [x] Auto-save draft to `localStorage` (clears on successful submit, restores on page return)
+- [x] Real-time validation feedback (`mode: 'onChange'` in React Hook Form)
 
 ## Phase 3: Multi-Media Support 🎬
 - [ ] Image/video uploads · Media gallery · Thumbnails

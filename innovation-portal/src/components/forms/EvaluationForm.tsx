@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 interface EvaluationFormProps {
   ideaId: string;
   currentStatus: string;
-  updatedAt: string;
+  currentUpdatedAt: string;
 }
 
 const STATUS_OPTIONS = [
@@ -22,9 +22,9 @@ const STATUS_OPTIONS = [
 
 import { z } from 'zod';
 
-type FormData = z.infer<typeof evaluateSchema>;
+type EvaluateFormValues = z.infer<typeof evaluateSchema>;
 
-export function EvaluationForm({ ideaId, currentStatus, updatedAt }: EvaluationFormProps) {
+export function EvaluationForm({ ideaId, currentStatus, currentUpdatedAt }: EvaluationFormProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -32,10 +32,10 @@ export function EvaluationForm({ ideaId, currentStatus, updatedAt }: EvaluationF
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  } = useForm<EvaluateFormValues>({
     resolver: zodResolver(evaluateSchema),
     defaultValues: {
-      status: currentStatus === 'SUBMITTED' ? 'UNDER_REVIEW' : currentStatus,
+      status: (currentStatus === 'SUBMITTED' ? 'UNDER_REVIEW' : currentStatus) as EvaluateFormValues['status'],
       feedback: '',
     },
   });
@@ -54,7 +54,7 @@ export function EvaluationForm({ ideaId, currentStatus, updatedAt }: EvaluationF
     allowedStatuses.includes(opt.value)
   );
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: EvaluateFormValues) => {
     setServerError(null);
 
     try {
@@ -64,7 +64,7 @@ export function EvaluationForm({ ideaId, currentStatus, updatedAt }: EvaluationF
         body: JSON.stringify({
           status: data.status,
           feedback: data.feedback,
-          updatedAt,
+          updatedAt: currentUpdatedAt,
         }),
       });
 

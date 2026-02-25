@@ -107,6 +107,7 @@ export interface IdeaWithRelations {
   category: IdeaCategory;
   status: IdeaStatus;
   visibility: Visibility;
+  metadata: Record<string, string> | null; // Phase 2: category-specific fields
   createdAt: Date;
   updatedAt: Date;
   submitter: {
