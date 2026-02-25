@@ -50,7 +50,7 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} method="POST" className="space-y-4" noValidate>
       {serverError && (
         <div
           role="alert"

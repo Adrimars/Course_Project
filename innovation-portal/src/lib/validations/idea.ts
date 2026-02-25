@@ -14,6 +14,7 @@ const IdeaStatusValues = [
   'UNDER_REVIEW',
   'ACCEPTED',
   'REJECTED',
+  'INSPECTING',
 ] as const;
 
 const VisibilityValues = ['PUBLIC', 'PRIVATE'] as const;

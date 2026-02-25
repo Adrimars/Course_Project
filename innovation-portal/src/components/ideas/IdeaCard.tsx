@@ -31,7 +31,7 @@ export function IdeaCard({ idea }: IdeaCardProps) {
             <span>·</span>
             <span>{formatDate(idea.createdAt)}</span>
             <span>·</span>
-            <span className="capitalize">{idea.category.replace('_', ' ').toLowerCase()}</span>
+            <span className="capitalize">{idea.category.replace(/_/g, ' ').toLowerCase()}</span>
             {idea.visibility === 'PRIVATE' && (
               <>
                 <span>·</span>

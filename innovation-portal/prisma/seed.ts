@@ -3,9 +3,9 @@
  * Run: npm run db:seed  (or: npx prisma db seed)
  *
  * Creates:
- *   • admin@example.com / Admin123!  → role ADMIN
- *   • user1@example.com / User1234!  → role USER
- *   • user2@example.com / User5678!  → role USER
+ *   • admin@epam.com / Admin123!  → role ADMIN
+ *   • user1@epam.com / User1234!  → role USER
+ *   • user2@epam.com / User5678!  → role USER
  *   • 5 sample ideas in various states
  */
 import { PrismaClient } from '@prisma/client';
@@ -22,33 +22,33 @@ async function main() {
 
   // ── Users ──────────────────────────────────────────────────────────────────
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
+    where: { email: 'admin@epam.com' },
     update: {},
     create: {
       name: 'Admin User',
-      email: 'admin@example.com',
+      email: 'admin@epam.com',
       hashedPassword: hashSync('Admin123!', 12),
       role: 'ADMIN',
     },
   });
 
   const user1 = await prisma.user.upsert({
-    where: { email: 'user1@example.com' },
+    where: { email: 'user1@epam.com' },
     update: {},
     create: {
       name: 'Alice Employee',
-      email: 'user1@example.com',
+      email: 'user1@epam.com',
       hashedPassword: hashSync('User1234!', 12),
       role: 'USER',
     },
   });
 
   const user2 = await prisma.user.upsert({
-    where: { email: 'user2@example.com' },
+    where: { email: 'user2@epam.com' },
     update: {},
     create: {
       name: 'Bob Employee',
-      email: 'user2@example.com',
+      email: 'user2@epam.com',
       hashedPassword: hashSync('User5678!', 12),
       role: 'USER',
     },
@@ -222,9 +222,9 @@ async function main() {
 
   console.log('  ✓ Status history entries created');
   console.log('\n✅  Seed complete!\n');
-  console.log('   Admin:  admin@example.com   / Admin123!');
-  console.log('   User 1: user1@example.com   / User1234!');
-  console.log('   User 2: user2@example.com   / User5678!\n');
+  console.log('   Admin:  admin@epam.com   / Admin123!');
+  console.log('   User 1: user1@epam.com   / User1234!');
+  console.log('   User 2: user2@epam.com   / User5678!\n');
 }
 
 main()

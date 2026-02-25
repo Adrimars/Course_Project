@@ -60,9 +60,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <div className="mb-4 flex flex-wrap gap-2">
           <a
             href="/admin"
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              !statusFilter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${!statusFilter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             All
           </a>
@@ -70,18 +69,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <a
               key={s}
               href={`/admin?status=${s}`}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                statusFilter === s
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusFilter === s
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {s.replace(/_/g, ' ')}
             </a>
           ))}
         </div>
 
-        <IdeaList ideas={ideas as any} pagination={pagination} basePath="/admin?" />
+        <IdeaList ideas={ideas as any} pagination={pagination} basePath={statusFilter ? `/admin?status=${statusFilter}&` : '/admin?'} />
       </main>
     </>
   );

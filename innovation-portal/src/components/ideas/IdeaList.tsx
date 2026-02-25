@@ -23,7 +23,13 @@ export function IdeaList({ ideas, pagination, basePath = '?' }: IdeaListProps) {
   const { page, totalPages, totalCount, hasNext, hasPrev } = pagination;
 
   const goToPage = (p: number) => {
-    router.push(`${basePath}page=${p}`);
+    // BUG-7 FIX: Properly handle URL separators
+    const endsWithSeparator = basePath.endsWith('?') || basePath.endsWith('&');
+    const hasSeparator = basePath.includes('?');
+    const base = endsWithSeparator
+      ? basePath
+      : basePath + (hasSeparator ? '&' : '?');
+    router.push(`${base}page=${p}`);
   };
 
   return (

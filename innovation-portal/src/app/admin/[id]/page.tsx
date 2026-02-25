@@ -30,19 +30,26 @@ export default async function AdminIdeaPage({ params }: AdminIdeaPageProps) {
   if (!stub) notFound();
 
   // spec FR-008: auto-transition SUBMITTED → UNDER_REVIEW on admin view
+  // BUG-3 FIX: Use updateMany with status guard to prevent duplicate
+  // StatusHistory entries from concurrent page loads.
   if (stub.status === 'SUBMITTED') {
-    await prisma.$transaction([
-      prisma.idea.update({ where: { id }, data: { status: 'UNDER_REVIEW' } }),
-      prisma.statusHistory.create({
-        data: {
-          ideaId: id,
-          fromStatus: 'SUBMITTED',
-          toStatus: 'UNDER_REVIEW',
-          adminId: session.user.id,
-          feedback: 'Opened by administrator for review.',
-        },
-      }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.idea.updateMany({
+        where: { id, status: 'SUBMITTED' },
+        data: { status: 'UNDER_REVIEW' },
+      });
+      if (updated.count > 0) {
+        await tx.statusHistory.create({
+          data: {
+            ideaId: id,
+            fromStatus: 'SUBMITTED',
+            toStatus: 'UNDER_REVIEW',
+            adminId: session.user.id,
+            feedback: 'Opened by administrator for review.',
+          },
+        });
+      }
+    });
   }
 
   // Full fetch including all relations

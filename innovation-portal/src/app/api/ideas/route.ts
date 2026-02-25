@@ -29,11 +29,11 @@ export async function GET(req: NextRequest) {
   const whereClause = isAdmin
     ? {}
     : {
-        OR: [
-          { visibility: 'PUBLIC' as const },
-          { submitterId: session.user.id },
-        ],
-      };
+      OR: [
+        { visibility: 'PUBLIC' as const },
+        { submitterId: session.user.id },
+      ],
+    };
 
   const [ideas, totalCount] = await Promise.all([
     prisma.idea.findMany({
@@ -127,8 +127,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // spec CHK017: Server-side MIME type validation
-    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    // Read file into buffer first so we can inspect magic bytes
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // BUG-2 FIX: Validate MIME type from magic bytes, not the client-supplied
+    // Content-Type header which can be trivially spoofed.
+    const { fileTypeFromBuffer } = await import('file-type');
+    const detected = await fileTypeFromBuffer(buffer);
+
+    // For PDF/DOC files, file-type may detect them; for some .doc files
+    // it may return 'application/x-cfb'. We also allow the detected MIME
+    // to match our allowed set.
+    if (!detected || !ALLOWED_MIME_TYPES.has(detected.mime)) {
       return NextResponse.json(
         {
           error:
@@ -142,13 +152,12 @@ export async function POST(req: NextRequest) {
     const storageFilename = uuidv4();
     const storagePath = path.join(uploadDir, storageFilename);
 
-    const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(storagePath, buffer);
 
     savedFile = {
       storagePath: storageFilename, // Store only the UUID filename, not the full path
       originalName: file.name,
-      mimeType: file.type,
+      mimeType: detected.mime, // Use the detected MIME, not the client-supplied one
       size: file.size,
     };
   }

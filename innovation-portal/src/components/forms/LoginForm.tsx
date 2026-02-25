@@ -13,7 +13,9 @@ import { Label } from '@/components/ui/Label';
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard';
+  // Sanitize callbackUrl — only allow relative paths to prevent open redirect
+  const rawCallback = searchParams.get('callbackUrl') ?? '/dashboard';
+  const callbackUrl = rawCallback.startsWith('/') ? rawCallback : '/dashboard';
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -41,7 +43,9 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    // SECURITY: method="POST" ensures credentials never appear in URL
+    // even if JavaScript fails to intercept the form submission
+    <form onSubmit={handleSubmit(onSubmit)} method="POST" className="space-y-4" noValidate>
       {serverError && (
         <div
           role="alert"

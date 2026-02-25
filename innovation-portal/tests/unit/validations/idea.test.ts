@@ -124,6 +124,12 @@ describe('evaluateSchema', () => {
     ).toBe(true);
   });
 
+  it('passes with INSPECTING status (BUG-6)', () => {
+    expect(
+      evaluateSchema.safeParse({ ...validEvaluation, status: 'INSPECTING' }).success
+    ).toBe(true);
+  });
+
   it('fails when feedback is missing', () => {
     const result = evaluateSchema.safeParse({ status: 'ACCEPTED' });
     expect(result.success).toBe(false);

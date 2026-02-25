@@ -142,6 +142,26 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
     }
 
+    // BUG-6 FIX: Enforce valid status transitions
+    const VALID_TRANSITIONS: Record<string, string[]> = {
+      SUBMITTED: ['UNDER_REVIEW'],
+      UNDER_REVIEW: ['ACCEPTED', 'REJECTED', 'INSPECTING'],
+      ACCEPTED: ['UNDER_REVIEW'],
+      REJECTED: ['UNDER_REVIEW'],
+      INSPECTING: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
+    };
+
+    const allowed = VALID_TRANSITIONS[idea.status] ?? [];
+    if (!allowed.includes(newStatus)) {
+      return NextResponse.json(
+        {
+          error: `Cannot transition from ${idea.status} to ${newStatus}.`,
+          allowedTransitions: allowed,
+        },
+        { status: 422 }
+      );
+    }
+
     // spec CHK029: Optimistic locking — check updatedAt if provided
     if (body.updatedAt && new Date(body.updatedAt).getTime() !== idea.updatedAt.getTime()) {
       return NextResponse.json(
