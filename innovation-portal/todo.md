@@ -33,10 +33,10 @@
 ## Phase 1: Core Features 🚀
 
 ### 1.1 — Session Rewrite (sessionStorage-based per-tab auth)
-- [ ] Replace NextAuth cookie sessions with sessionStorage token-based auth
-- [ ] Create custom `useTabSession` hook
-- [ ] Update middleware for header-based token reading
-- [ ] Manual test: two tabs with different accounts
+- [x] Replace NextAuth cookie sessions with sessionStorage token-based auth
+- [x] Create custom `useTabSession` hook
+- [x] Update middleware for header-based token reading
+- [x] Manual test: two tabs with different accounts
 
 ### 1.2 — RBAC: Inspector Role + Admin Panel
 - [x] Add `INSPECTOR` to Prisma `Role` enum + migrate
