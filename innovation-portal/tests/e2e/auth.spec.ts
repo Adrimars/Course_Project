@@ -52,7 +52,7 @@ test.describe('Authentication flow (US1)', () => {
   test('shows error on invalid credentials', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email Address').fill('nonexistent@example.com');
-    await page.getByLabel('Password').fill('WrongPass1!');
+    await page.getByRole('textbox', { name: 'Password' }).fill('WrongPass1!');
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     await expect(page.getByRole('alert')).toBeVisible();
