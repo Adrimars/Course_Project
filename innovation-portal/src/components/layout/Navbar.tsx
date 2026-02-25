@@ -88,7 +88,7 @@ export function Navbar() {
                   href="/admin"
                   className="text-sm font-medium text-blue-600 hover:text-blue-700"
                 >
-                  {isAdmin ? 'Admin Panel' : 'Inspector Panel'}
+                  Admin Panel
                 </Link>
                 {isAdmin && (
                   <Link

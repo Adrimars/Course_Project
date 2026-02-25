@@ -19,16 +19,16 @@ export default async function DashboardPage() {
   const visibilityFilter = isPrivileged
     ? {}
     : {
-        AND: [
-          { status: { not: IdeaStatus.INSPECTING } },
-          {
-            OR: [
-              { visibility: 'PUBLIC' as const },
-              { submitterId: session.user.id },
-            ],
-          },
-        ],
-      };
+      AND: [
+        { status: { not: IdeaStatus.INSPECTING } },
+        {
+          OR: [
+            { visibility: 'PUBLIC' as const },
+            { submitterId: session.user.id },
+          ],
+        },
+      ],
+    };
 
   const [statusCounts, totalIdeas, myIdeasCount] = await Promise.all([
     prisma.idea.groupBy({
@@ -42,33 +42,17 @@ export default async function DashboardPage() {
 
   const quickLinks = [
     {
-      href: '/ideas/new',
-      label: '+ Submit Idea',
-      desc: 'Share a new innovation idea',
-      highlight: true,
-    },
-    {
-      href: '/my-ideas',
-      label: 'My Ideas',
-      desc: 'View your submitted and assigned ideas',
+      href: '/notifications',
+      label: '🔔 Notifications',
+      desc: 'Stay updated on your idea activity',
       highlight: false,
     },
     {
-      href: '/ideas',
-      label: 'Browse Ideas',
-      desc: 'Explore all ideas with search & filter',
+      href: '/leaderboard',
+      label: '🏆 Leaderboard',
+      desc: 'Top-scored and trending ideas',
       highlight: false,
     },
-    ...(isPrivileged
-      ? [
-          {
-            href: '/admin',
-            label: isAdmin ? 'Admin Panel' : 'Inspector Panel',
-            desc: 'Review and evaluate submitted ideas',
-            highlight: false,
-          },
-        ]
-      : []),
   ];
 
   return (
@@ -93,21 +77,19 @@ export default async function DashboardPage() {
         />
 
         {/* Quick-action links */}
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {quickLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-lg border p-4 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                link.highlight
-                  ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
+              className={`rounded-lg border p-4 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${link.highlight
+                ? 'border-blue-200 bg-blue-50 hover:bg-blue-100'
+                : 'border-gray-200 bg-white hover:bg-gray-50'
+                }`}
             >
               <p
-                className={`text-sm font-semibold ${
-                  link.highlight ? 'text-blue-700' : 'text-gray-900'
-                }`}
+                className={`text-sm font-semibold ${link.highlight ? 'text-blue-700' : 'text-gray-900'
+                  }`}
               >
                 {link.label}
               </p>
