@@ -18,10 +18,10 @@ import { useToast } from '@/components/ui/Toast';
 import { formatFileSize } from '@/lib/utils';
 
 // Phase 3: expanded limits
-const MAX_FILE_SIZE      = 10 * 1024 * 1024;  // 10 MB per file
+const MAX_FILE_SIZE = 10 * 1024 * 1024;  // 10 MB per file
 const MAX_AGGREGATE_SIZE = 50 * 1024 * 1024;  // 50 MB total
-const MAX_FILES          = 5;
-const MAX_VIDEO_LINKS    = 3;
+const MAX_FILES = 5;
+const MAX_VIDEO_LINKS = 3;
 
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -38,12 +38,12 @@ const ALLOWED_TYPES = [
 ];
 
 const CATEGORY_OPTIONS = [
-  { value: 'TECHNOLOGY',          label: 'Technology' },
-  { value: 'PROCESS',             label: 'Process Improvement' },
-  { value: 'PRODUCT',             label: 'Product' },
-  { value: 'COST_SAVING',         label: 'Cost Saving' },
+  { value: 'TECHNOLOGY', label: 'Technology' },
+  { value: 'PROCESS', label: 'Process Improvement' },
+  { value: 'PRODUCT', label: 'Product' },
+  { value: 'COST_SAVING', label: 'Cost Saving' },
   { value: 'CUSTOMER_EXPERIENCE', label: 'Customer Experience' },
-  { value: 'OTHER',               label: 'Other' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 const AUTOSAVE_KEY = 'idea-form-draft';
@@ -73,7 +73,7 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
   const { showToast } = useToast();
 
   // Phase 3: multi-file state
-  const [fileErrors, setFileErrors]   = useState<string[]>([]);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   // Phase 3: video links state
@@ -86,11 +86,11 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [videoLinksOpen, setVideoLinksOpen] = useState(false);
 
-  const [serverError,    setServerError]    = useState<string | null>(null);
-  const [isSavingDraft,  setIsSavingDraft]  = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   // Phase 2: metadata key/value map for category-specific fields
-  const [metadata,          setMetadata]       = useState<Record<string, string>>({});
-  const [templateLoaded,    setTemplateLoaded] = useState(false);
+  const [metadata, setMetadata] = useState<Record<string, string>>({});
+  const [templateLoaded, setTemplateLoaded] = useState(false);
 
   const {
     register,
@@ -104,20 +104,20 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
     mode: 'onChange',
   });
 
-  const titleValue       = watch('title')       ?? '';
+  const titleValue = watch('title') ?? '';
   const descriptionValue = watch('description') ?? '';
-  const selectedCategory = watch('category')    ?? '';
+  const selectedCategory = watch('category') ?? '';
 
   // ── Initialize from initialValues (edit mode) or localStorage (create mode) ─
   useEffect(() => {
     // Phase 4: edit mode — pre-fill from server data
     if (draftId && initialValues) {
-      if (initialValues.title)       setValue('title',       initialValues.title);
+      if (initialValues.title) setValue('title', initialValues.title);
       if (initialValues.description) setValue('description', initialValues.description);
-      if (initialValues.category)    setValue('category',    initialValues.category as never);
-      if (initialValues.visibility)  setValue('visibility',  initialValues.visibility as never);
-      if (initialValues.metadata)    setMetadata(initialValues.metadata);
-      if (initialValues.videoLinks)  setVideoLinks(initialValues.videoLinks);
+      if (initialValues.category) setValue('category', initialValues.category as never);
+      if (initialValues.visibility) setValue('visibility', initialValues.visibility as never);
+      if (initialValues.metadata) setMetadata(initialValues.metadata);
+      if (initialValues.videoLinks) setVideoLinks(initialValues.videoLinks);
       return; // don't restore from localStorage in edit mode
     }
     // Create mode: restore auto-saved localStorage draft
@@ -125,17 +125,17 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
       const saved = localStorage.getItem(AUTOSAVE_KEY);
       if (!saved) return;
       const draft = JSON.parse(saved) as {
-        title?: string;       description?: string;
-        category?: string;    visibility?: string;
+        title?: string; description?: string;
+        category?: string; visibility?: string;
         metadata?: Record<string, string>;
         videoLinks?: Array<{ url: string; title: string }>;
       };
-      if (draft.title)       setValue('title',       draft.title);
+      if (draft.title) setValue('title', draft.title);
       if (draft.description) setValue('description', draft.description);
-      if (draft.category)    setValue('category',    draft.category as never);
-      if (draft.visibility)  setValue('visibility',  draft.visibility as never);
-      if (draft.metadata)    setMetadata(draft.metadata);
-      if (draft.videoLinks)  setVideoLinks(draft.videoLinks);
+      if (draft.category) setValue('category', draft.category as never);
+      if (draft.visibility) setValue('visibility', draft.visibility as never);
+      if (draft.metadata) setMetadata(draft.metadata);
+      if (draft.videoLinks) setVideoLinks(draft.videoLinks);
     } catch { /* ignore corrupt drafts */ }
   }, [setValue]);
 
@@ -143,10 +143,10 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
   const saveDraft = useCallback(() => {
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-        title:       titleValue,
+        title: titleValue,
         description: descriptionValue,
-        category:    selectedCategory,
-        visibility:  watch('visibility'),
+        category: selectedCategory,
+        visibility: watch('visibility'),
         metadata,
         videoLinks,
       }));
@@ -164,7 +164,7 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
   const handleLoadTemplate = () => {
     const tpl = CATEGORY_TEMPLATES[selectedCategory];
     if (!tpl) return;
-    setValue('title',       tpl.title,       { shouldValidate: true });
+    setValue('title', tpl.title, { shouldValidate: true });
     setValue('description', tpl.description, { shouldValidate: true });
     setTemplateLoaded(true);
     showToast('Template loaded — customise it before submitting.', 'success');
@@ -262,12 +262,12 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             submitDraft: true,
-            title:       data.title,
+            title: data.title,
             description: data.description,
-            category:    data.category,
-            visibility:  data.visibility ?? 'PUBLIC',
-            metadata:    Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
-            videoLinks:  filledLinks.length > 0 ? filledLinks : undefined,
+            category: data.category,
+            visibility: data.visibility ?? 'PUBLIC',
+            metadata: Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
+            videoLinks: filledLinks.length > 0 ? filledLinks : undefined,
           }),
         });
         if (res.ok) {
@@ -286,10 +286,10 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
 
     // Create mode — POST with multipart form data
     const formData = new FormData();
-    formData.append('title',       data.title);
+    formData.append('title', data.title);
     formData.append('description', data.description);
-    formData.append('category',    data.category);
-    formData.append('visibility',  data.visibility ?? 'PUBLIC');
+    formData.append('category', data.category);
+    formData.append('visibility', data.visibility ?? 'PUBLIC');
 
     // Phase 2: non-empty metadata
     if (Object.keys(filteredMeta).length > 0) {
@@ -340,12 +340,12 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             draft: {
-              title:       currentValues.title,
+              title: currentValues.title,
               description: currentValues.description,
-              category:    currentValues.category,
-              visibility:  currentValues.visibility ?? 'PUBLIC',
-              metadata:    Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
-              videoLinks:  filledLinks.length > 0 ? filledLinks : undefined,
+              category: currentValues.category,
+              visibility: currentValues.visibility ?? 'PUBLIC',
+              metadata: Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
+              videoLinks: filledLinks.length > 0 ? filledLinks : undefined,
             },
           }),
         });
@@ -358,11 +358,11 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
       } else {
         // Create mode: POST with isDraft=true
         const formData = new FormData();
-        formData.append('title',       currentValues.title       ?? '');
+        formData.append('title', currentValues.title ?? '');
         formData.append('description', currentValues.description ?? '');
-        formData.append('category',    currentValues.category    ?? '');
-        formData.append('visibility',  currentValues.visibility  ?? 'PUBLIC');
-        formData.append('isDraft',     'true');
+        formData.append('category', currentValues.category ?? '');
+        formData.append('visibility', currentValues.visibility ?? 'PUBLIC');
+        formData.append('isDraft', 'true');
 
         if (Object.keys(filteredMeta).length > 0) {
           formData.append('metadata', JSON.stringify(filteredMeta));
@@ -426,9 +426,8 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
             id="category"
             aria-describedby={errors.category ? 'category-error' : undefined}
             aria-invalid={!!errors.category}
-            className={`flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.category ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500'
-            }`}
+            className={`flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
             {...register('category')}
           >
             <option value="">Select a category…</option>
@@ -466,9 +465,8 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
           placeholder="Describe your idea in at least 50 characters…"
           aria-describedby={errors.description ? 'description-error' : undefined}
           aria-invalid={!!errors.description}
-          className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500'
-          }`}
+          className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500'
+            }`}
           {...register('description')}
         />
         {errors.description && (
@@ -528,7 +526,7 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
         <legend className="block text-sm font-medium text-gray-700">Visibility</legend>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">
-            <input type="radio" value="PUBLIC"  className="text-blue-600" {...register('visibility')} />
+            <input type="radio" value="PUBLIC" className="text-blue-600" {...register('visibility')} />
             Public — visible to all users
           </label>
           <label className="flex items-center gap-2 text-sm">
@@ -681,7 +679,7 @@ export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps =
           onClick={handleSaveDraft}
           isLoading={isSavingDraft}
           disabled={isSubmitting}
-          className="flex-1 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+          className="flex-1 border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200"
         >
           {draftId ? 'Update Draft' : 'Save as Draft'}
         </Button>

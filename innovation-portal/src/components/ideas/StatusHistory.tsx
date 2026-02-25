@@ -19,40 +19,36 @@ export function StatusHistory({ history }: StatusHistoryProps) {
   }
 
   return (
-    <ol className="space-y-4">
+    <ol className="space-y-2">
       {history.map((entry) => (
         <li
           key={entry.id}
-          className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+          className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2"
         >
-          {/* Row 1: Actor + timestamp */}
-          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+          {/* Compact: actor, timestamp, badges all on one row */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span className="font-medium text-gray-700">
-              {/* spec CHK015: System transition shows "System", admin shows their name */}
               {entry.admin?.name ?? 'System'}
             </span>
-            <span>·</span>
-            <time dateTime={new Date(entry.createdAt).toISOString()}>
+            <span className="text-gray-300">·</span>
+            <time className="text-gray-400" dateTime={new Date(entry.createdAt).toISOString()}>
               {formatDate(entry.createdAt)}
             </time>
-          </div>
-
-          {/* Row 2: Status transition badges */}
-          <div className="mt-2 flex items-center gap-2 text-sm">
-            {entry.fromStatus ? (
+            <span className="text-gray-300">·</span>
+            {entry.fromStatus && (
               <>
                 <StatusBadge status={entry.fromStatus} />
                 <span className="text-gray-400" aria-label="changed to">→</span>
               </>
-            ) : null}
+            )}
             <StatusBadge status={entry.toStatus} />
           </div>
 
-          {/* Row 3: Feedback comments */}
+          {/* Feedback — smaller */}
           {entry.feedback && (
-            <blockquote className="mt-2 border-l-2 border-blue-400 pl-3 text-sm text-gray-700">
+            <p className="mt-1 border-l-2 border-blue-300 pl-2 text-xs text-gray-600">
               {entry.feedback}
-            </blockquote>
+            </p>
           )}
         </li>
       ))}
