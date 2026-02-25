@@ -18,6 +18,12 @@ const STATUS_META: Record<
   IdeaStatus,
   { label: string; color: string; bg: string; bar: string }
 > = {
+  [IdeaStatus.DRAFT]: {
+    label: 'Draft',
+    color: 'text-yellow-700',
+    bg: 'bg-yellow-50',
+    bar: 'bg-yellow-400',
+  },
   [IdeaStatus.SUBMITTED]: {
     label: 'Submitted',
     color: 'text-gray-700',

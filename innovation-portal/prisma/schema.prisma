@@ -18,6 +18,7 @@ enum Role {
 }
 
 enum IdeaStatus {
+  DRAFT
   SUBMITTED
   UNDER_REVIEW
   ACCEPTED

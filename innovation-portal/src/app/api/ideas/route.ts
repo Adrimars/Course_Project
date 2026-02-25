@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { ideaSubmitSchema } from '@/lib/validations/idea';
+import { ideaSubmitSchema, draftSaveSchema } from '@/lib/validations/idea';
 import { getPaginationParams, buildPaginationMeta } from '@/lib/utils';
 import { Role } from '@/types';
 import {
@@ -38,16 +38,17 @@ export async function GET(req: NextRequest) {
   const isPrivileged = isAdmin || isInspector;
 
   // Visibility rules:
-  // - Admin/Inspector see ALL ideas
-  // - Regular users see PUBLIC + own PRIVATE, but NEVER INSPECTING
-  const accessFilter = isPrivileged
-    ? {}
+  // - Admin/Inspector see all ideas EXCEPT DRAFT (drafts are private to owner)
+  // - Regular users see PUBLIC + own PRIVATE, but never INSPECTING or DRAFT
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accessFilter: any = isPrivileged
+    ? { status: { not: 'DRAFT' } }
     : {
       AND: [
-        { status: { not: 'INSPECTING' as const } },
+        { status: { notIn: ['INSPECTING', 'DRAFT'] } },
         {
           OR: [
-            { visibility: 'PUBLIC' as const },
+            { visibility: 'PUBLIC' },
             { submitterId: session.user.id },
           ],
         },
@@ -138,6 +139,9 @@ export async function POST(req: NextRequest) {
     try { parsedVideoLinks = JSON.parse(rawVideoLinks); } catch { /* ignore */ }
   }
 
+  // Phase 4: check if saving as draft
+  const isDraft = formData.get('isDraft') === 'true';
+
   const textFields = {
     title:       formData.get('title'),
     description: formData.get('description'),
@@ -147,8 +151,9 @@ export async function POST(req: NextRequest) {
     videoLinks:  parsedVideoLinks,
   };
 
-  // Validate text fields with Zod
-  const parsed = ideaSubmitSchema.safeParse(textFields);
+  // Use relaxed schema for drafts, full schema for submissions
+  const schema = isDraft ? draftSaveSchema : ideaSubmitSchema;
+  const parsed = schema.safeParse(textFields);
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -167,7 +172,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { title, description, category, visibility, metadata, videoLinks } = parsed.data;
+  const { title, description, category, visibility, metadata, videoLinks } = parsed.data as {
+    title: string;
+    description: string;
+    category?: string;
+    visibility: string;
+    metadata?: Record<string, string>;
+    videoLinks?: Array<{ url: string; title?: string }>;
+  };
 
   // ─── Phase 3: Multiple file attachments ─────────────────────────────────────────────
   // Collect all files from the multipart form (field names: attachment, attachment[])
@@ -244,9 +256,10 @@ export async function POST(req: NextRequest) {
     const created = await tx.idea.create({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: {
-        title,
-        description,
-        category,
+        title:       title ?? '',
+        description: description ?? '',
+        category:    category ?? 'OTHER',
+        status:      isDraft ? 'DRAFT' : 'SUBMITTED',
         visibility,
         metadata:   metadata   ?? undefined,
         videoLinks: videoLinks && videoLinks.length > 0 ? videoLinks : undefined,

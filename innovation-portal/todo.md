@@ -134,8 +134,23 @@
 - [x] Integration tests: multi-file validation, aggregate size, video link validation (`tests/integration/api/ideas.test.ts`)
 - [x] All 188 tests passing
 
-## Phase 4: Draft Management 📋
-- [ ] DRAFT status · Auto-save · "My Drafts" section
+## Phase 4: Draft Management 📋 ✅
+- [x] Add `DRAFT` to `IdeaStatus` Prisma enum + `20260225120000_phase4_draft_status` migration
+- [x] Update `src/types/index.ts` and `src/lib/validations/idea.ts` (add `draftSaveSchema`)
+- [x] `GET /api/ideas` excludes DRAFTs from all listings (owners must use `/ideas/[id]` directly)
+- [x] `POST /api/ideas` supports `isDraft=true` flag (relaxed validation, status → DRAFT)
+- [x] `GET /api/ideas/[id]` — DRAFT only accessible by owner (404 for everyone else)
+- [x] `PATCH /api/ideas/[id]` — Path C: draft field update; Path D: submit draft with full validation
+- [x] `DELETE /api/ideas/[id]` — owner can delete their own DRAFTs
+- [x] `StatusBadge` — DRAFT shows yellow badge
+- [x] `Badge.tsx` — extended to support named color variants
+- [x] `IdeaSubmitForm` — "Save as Draft" + "Submit Idea" dual-action buttons; edit mode via `draftId` prop
+- [x] `src/app/my-ideas/page.tsx` — "My Drafts" tab (status=DRAFT filter)
+- [x] `src/app/ideas/[id]/page.tsx` — DRAFT access control + yellow banner with `DraftActions`
+- [x] `src/components/ideas/DraftActions.tsx` — Edit / Submit / Delete actions for draft owner
+- [x] `src/app/ideas/[id]/edit/page.tsx` — Draft edit page (server component, loads draft into form)
+- [x] `src/components/forms/EvaluationForm.tsx` — Admin evaluation form (pre-existing missing component)
+- [x] `AnalyticsDashboard` — DRAFT added to `STATUS_META` record
 
 ## Phase 5: Multi-Stage Review 🔄
 - [ ] Review stages pipeline · Multi-reviewer · Stage-gate approvals
@@ -148,4 +163,4 @@
 
 ---
 
-*Last updated: 2026-02-25 — Phase 3 complete*
+*Last updated: 2026-02-25 — Phase 4 complete*

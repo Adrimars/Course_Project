@@ -7,6 +7,7 @@ export enum Role {
 }
 
 export enum IdeaStatus {
+  DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',
   UNDER_REVIEW = 'UNDER_REVIEW',
   ACCEPTED = 'ACCEPTED',

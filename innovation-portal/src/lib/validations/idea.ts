@@ -10,6 +10,7 @@ const IdeaCategoryValues = [
 ] as const;
 
 const IdeaStatusValues = [
+  'DRAFT',
   'SUBMITTED',
   'UNDER_REVIEW',
   'ACCEPTED',
@@ -155,6 +156,32 @@ export const visibilityUpdateSchema = z.object({
   visibility: z.enum(VisibilityValues),
 });
 
+/**
+ * Phase 4: Relaxed schema for saving a draft — all fields optional.
+ * When a draft is submitted, full ideaSubmitSchema validation is applied.
+ */
+export const draftSaveSchema = z.object({
+  title: z
+    .string()
+    .max(200, 'Title must not exceed 200 characters')
+    .optional()
+    .default(''),
+  description: z
+    .string()
+    .max(5000, 'Description must not exceed 5000 characters')
+    .optional()
+    .default(''),
+  category: z.enum(IdeaCategoryValues).optional(),
+  visibility: z.enum(VisibilityValues).optional().default('PUBLIC'),
+  metadata: categoryMetadataSchema,
+  videoLinks: z
+    .array(videoLinkSchema)
+    .max(3, 'You may add at most 3 video links')
+    .optional()
+    .default([]),
+});
+
 export type IdeaSubmitInput = z.infer<typeof ideaSubmitSchema>;
 export type EvaluateInput = z.infer<typeof evaluateSchema>;
 export type VisibilityUpdateInput = z.infer<typeof visibilityUpdateSchema>;
+export type DraftSaveInput = z.infer<typeof draftSaveSchema>;

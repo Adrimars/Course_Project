@@ -48,11 +48,27 @@ const CATEGORY_OPTIONS = [
 
 const AUTOSAVE_KEY = 'idea-form-draft';
 
+// Phase 4: Optional props for draft edit mode
+interface IdeaSubmitFormProps {
+  /** If set, form is in draft-edit mode — submits via PATCH instead of POST */
+  draftId?: string;
+  /** Pre-fill values when editing an existing draft */
+  initialValues?: {
+    title?: string;
+    description?: string;
+    category?: string;
+    visibility?: string;
+    metadata?: Record<string, string>;
+    videoLinks?: Array<{ url: string; title: string }>;
+  };
+}
+
 /**
  * Phase 2 — Smart Submission Form
  * Phase 3 — Multi-Media support: multiple file attachments + video links
+ * Phase 4 — Draft Management: Save as Draft button + draft-edit mode
  */
-export function IdeaSubmitForm() {
+export function IdeaSubmitForm({ draftId, initialValues }: IdeaSubmitFormProps = {}) {
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -71,6 +87,7 @@ export function IdeaSubmitForm() {
   const [videoLinksOpen, setVideoLinksOpen] = useState(false);
 
   const [serverError,    setServerError]    = useState<string | null>(null);
+  const [isSavingDraft,  setIsSavingDraft]  = useState(false);
   // Phase 2: metadata key/value map for category-specific fields
   const [metadata,          setMetadata]       = useState<Record<string, string>>({});
   const [templateLoaded,    setTemplateLoaded] = useState(false);
@@ -91,8 +108,19 @@ export function IdeaSubmitForm() {
   const descriptionValue = watch('description') ?? '';
   const selectedCategory = watch('category')    ?? '';
 
-  // ── Auto-save: restore draft on mount ────────────────────────────────────
+  // ── Initialize from initialValues (edit mode) or localStorage (create mode) ─
   useEffect(() => {
+    // Phase 4: edit mode — pre-fill from server data
+    if (draftId && initialValues) {
+      if (initialValues.title)       setValue('title',       initialValues.title);
+      if (initialValues.description) setValue('description', initialValues.description);
+      if (initialValues.category)    setValue('category',    initialValues.category as never);
+      if (initialValues.visibility)  setValue('visibility',  initialValues.visibility as never);
+      if (initialValues.metadata)    setMetadata(initialValues.metadata);
+      if (initialValues.videoLinks)  setVideoLinks(initialValues.videoLinks);
+      return; // don't restore from localStorage in edit mode
+    }
+    // Create mode: restore auto-saved localStorage draft
     try {
       const saved = localStorage.getItem(AUTOSAVE_KEY);
       if (!saved) return;
@@ -222,6 +250,41 @@ export function IdeaSubmitForm() {
     });
     if (linkErrs.length > 0) { setVideoLinkErrors(linkErrs); return; }
 
+    const filteredMeta = Object.fromEntries(
+      Object.entries(metadata).filter(([, v]) => v.trim() !== '')
+    );
+
+    // Phase 4: Edit-mode (draft) submit — PATCH with submitDraft flag
+    if (draftId) {
+      try {
+        const res = await fetch(`/api/ideas/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitDraft: true,
+            title:       data.title,
+            description: data.description,
+            category:    data.category,
+            visibility:  data.visibility ?? 'PUBLIC',
+            metadata:    Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
+            videoLinks:  filledLinks.length > 0 ? filledLinks : undefined,
+          }),
+        });
+        if (res.ok) {
+          localStorage.removeItem(AUTOSAVE_KEY);
+          showToast('Idea submitted successfully!', 'success');
+          router.push('/dashboard');
+          return;
+        }
+        const body = await res.json();
+        setServerError(body.error ?? 'Submission failed. Please try again.');
+      } catch {
+        setServerError('Network error. Please try again.');
+      }
+      return;
+    }
+
+    // Create mode — POST with multipart form data
     const formData = new FormData();
     formData.append('title',       data.title);
     formData.append('description', data.description);
@@ -229,9 +292,6 @@ export function IdeaSubmitForm() {
     formData.append('visibility',  data.visibility ?? 'PUBLIC');
 
     // Phase 2: non-empty metadata
-    const filteredMeta = Object.fromEntries(
-      Object.entries(metadata).filter(([, v]) => v.trim() !== '')
-    );
     if (Object.keys(filteredMeta).length > 0) {
       formData.append('metadata', JSON.stringify(filteredMeta));
     }
@@ -258,6 +318,76 @@ export function IdeaSubmitForm() {
       setServerError(body.error ?? 'Submission failed. Please try again.');
     } catch {
       setServerError('Network error. Please try again.');
+    }
+  };
+
+  // ── Phase 4: Save as Draft ────────────────────────────────────────────────
+  const handleSaveDraft = async () => {
+    setServerError(null);
+    setIsSavingDraft(true);
+
+    const currentValues = watch();
+    const filteredMeta = Object.fromEntries(
+      Object.entries(metadata).filter(([, v]) => v.trim() !== '')
+    );
+    const filledLinks = videoLinks.filter((v) => v.url.trim() !== '');
+
+    try {
+      if (draftId) {
+        // Edit mode: PATCH draft fields via JSON
+        const res = await fetch(`/api/ideas/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            draft: {
+              title:       currentValues.title,
+              description: currentValues.description,
+              category:    currentValues.category,
+              visibility:  currentValues.visibility ?? 'PUBLIC',
+              metadata:    Object.keys(filteredMeta).length > 0 ? filteredMeta : undefined,
+              videoLinks:  filledLinks.length > 0 ? filledLinks : undefined,
+            },
+          }),
+        });
+        if (res.ok) {
+          showToast('Draft updated!', 'success');
+        } else {
+          const body = await res.json();
+          setServerError(body.error ?? 'Failed to update draft.');
+        }
+      } else {
+        // Create mode: POST with isDraft=true
+        const formData = new FormData();
+        formData.append('title',       currentValues.title       ?? '');
+        formData.append('description', currentValues.description ?? '');
+        formData.append('category',    currentValues.category    ?? '');
+        formData.append('visibility',  currentValues.visibility  ?? 'PUBLIC');
+        formData.append('isDraft',     'true');
+
+        if (Object.keys(filteredMeta).length > 0) {
+          formData.append('metadata', JSON.stringify(filteredMeta));
+        }
+        for (const file of selectedFiles) {
+          formData.append('attachments', file);
+        }
+        if (filledLinks.length > 0) {
+          formData.append('videoLinks', JSON.stringify(filledLinks));
+        }
+
+        const res = await fetch('/api/ideas', { method: 'POST', body: formData });
+        if (res.status === 201) {
+          localStorage.removeItem(AUTOSAVE_KEY);
+          showToast('Draft saved!', 'success');
+          router.push('/my-ideas?tab=drafts');
+        } else {
+          const body = await res.json();
+          setServerError(body.error ?? 'Failed to save draft.');
+        }
+      }
+    } catch {
+      setServerError('Network error. Please try again.');
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -540,13 +670,30 @@ export function IdeaSubmitForm() {
       </div>
 
       {/* ── Auto-save indicator ──────────────────────────────────────────────── */}
-      {(titleValue.length > 0 || descriptionValue.length > 0) && (
-        <p className="text-xs text-gray-400 text-right">Draft auto-saved</p>
+      {!draftId && (titleValue.length > 0 || descriptionValue.length > 0) && (
+        <p className="text-xs text-gray-400 text-right">Draft auto-saved locally</p>
       )}
 
-      <Button type="submit" isLoading={isSubmitting} className="w-full">
-        Submit Idea
-      </Button>
+      {/* ── Submit / Save buttons ────────────────────────────────────────────── */}
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          onClick={handleSaveDraft}
+          isLoading={isSavingDraft}
+          disabled={isSubmitting}
+          className="flex-1 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+        >
+          {draftId ? 'Update Draft' : 'Save as Draft'}
+        </Button>
+        <Button
+          type="submit"
+          isLoading={isSubmitting}
+          disabled={isSavingDraft}
+          className="flex-1"
+        >
+          {draftId ? 'Submit Idea' : 'Submit Idea'}
+        </Button>
+      </div>
     </form>
   );
 }

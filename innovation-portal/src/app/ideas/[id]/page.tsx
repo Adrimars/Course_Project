@@ -13,6 +13,7 @@ import { JoinRequestsPanel } from '@/components/ideas/JoinRequestsPanel';
 import { MediaGallery } from '@/components/ideas/MediaGallery';
 import { VideoEmbed } from '@/components/ideas/VideoEmbed';
 import { AttachmentList } from '@/components/ideas/AttachmentList';
+import { DraftActions } from '@/components/ideas/DraftActions';
 import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -43,7 +44,9 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
 
   // spec FR-007b: PRIVATE idea only visible to submitter, admin, or inspector
   // INSPECTING ideas are hidden from regular users
+  // Phase 4: DRAFT ideas only visible to owner
   if (
+    (stub.status === 'DRAFT' && !isOwner) ||
     (stub.visibility === Visibility.PRIVATE && !isOwner && !isPrivileged) ||
     (stub.status === 'INSPECTING' && !isPrivileged)
   ) {
@@ -80,7 +83,9 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
   if (!displayIdea) notFound();
 
   const canSeeHistory = isOwner || isAdmin;
+  const isDraft = displayIdea.status === 'DRAFT';
   const canEvaluate =
+    !isDraft &&
     (isAdmin || isInspector) &&
     ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'INSPECTING'].includes(displayIdea.status);
 
@@ -89,9 +94,25 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         {/* Back link */}
-        <Link href="/dashboard" className="mb-4 inline-flex items-center text-sm text-blue-600 hover:underline">
+        <Link href="/my-ideas?tab=drafts" className={`mb-4 inline-flex items-center text-sm text-blue-600 hover:underline ${!isDraft ? 'hidden' : ''}`}>
+          ← Back to My Drafts
+        </Link>
+        <Link href="/dashboard" className={`mb-4 inline-flex items-center text-sm text-blue-600 hover:underline ${isDraft ? 'hidden' : ''}`}>
           ← Back to Dashboard
         </Link>
+
+        {/* Phase 4: Draft banner with actions */}
+        {isDraft && isOwner && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+            <div>
+              <p className="text-sm font-semibold text-yellow-800">📝 This idea is a Draft</p>
+              <p className="text-xs text-yellow-700 mt-0.5">
+                Not yet submitted. Only you can see it. Complete and submit when ready.
+              </p>
+            </div>
+            <DraftActions ideaId={displayIdea.id} />
+          </div>
+        )}
 
         {/* 1. Title + Status */}
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -210,17 +231,19 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
           </section>
         )}
 
-        {/* 8. Notes (all authenticated users who can access this idea) */}
-        <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
-          <NoteList
-            ideaId={displayIdea.id}
-            currentUserId={session.user.id}
-            canCollaborate={isPrivileged}
-          />
-        </div>
+        {/* 8. Notes (visible for non-draft ideas) */}
+        {!isDraft && (
+          <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+            <NoteList
+              ideaId={displayIdea.id}
+              currentUserId={session.user.id}
+              canCollaborate={isPrivileged}
+            />
+          </div>
+        )}
 
-        {/* 9. Assignments (admin/inspector view) */}
-        {isPrivileged && (
+        {/* 9. Assignments (admin/inspector view, non-draft only) */}
+        {isPrivileged && !isDraft && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6">
             <AssignmentSection
               ideaId={displayIdea.id}
@@ -230,15 +253,15 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
           </div>
         )}
 
-        {/* 10. Join request button (non-owner, non-private ideas) */}
-        {!isOwner && displayIdea.visibility !== 'PRIVATE' && (
+        {/* 10. Join request button (non-owner, non-private, non-draft ideas) */}
+        {!isOwner && !isDraft && displayIdea.visibility !== 'PRIVATE' && (
           <div className="mt-4">
             <JoinRequestButton ideaId={displayIdea.id} isOwner={isOwner} />
           </div>
         )}
 
-        {/* 11. Pending join requests panel (idea owner + admins) */}
-        {(isOwner || isAdmin) && (
+        {/* 11. Pending join requests panel (idea owner + admins, non-draft) */}
+        {(isOwner || isAdmin) && !isDraft && (
           <JoinRequestsPanel ideaId={displayIdea.id} />
         )}
       </main>

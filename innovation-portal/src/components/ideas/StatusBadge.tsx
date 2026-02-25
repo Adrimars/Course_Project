@@ -5,11 +5,12 @@ interface StatusBadgeProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: string }> = {
-  SUBMITTED: { label: 'Submitted', variant: 'gray' },
+  DRAFT:        { label: 'Draft',        variant: 'yellow' },
+  SUBMITTED:    { label: 'Submitted',    variant: 'gray' },
   UNDER_REVIEW: { label: 'Under Review', variant: 'blue' },
-  ACCEPTED: { label: 'Accepted', variant: 'green' },
-  REJECTED: { label: 'Rejected', variant: 'red' },
-  INSPECTING: { label: 'Inspecting', variant: 'purple' },
+  ACCEPTED:     { label: 'Accepted',     variant: 'green' },
+  REJECTED:     { label: 'Rejected',     variant: 'red' },
+  INSPECTING:   { label: 'Inspecting',   variant: 'purple' },
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

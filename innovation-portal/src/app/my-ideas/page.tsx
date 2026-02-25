@@ -25,14 +25,16 @@ export default async function MyIdeasPage({ searchParams }: MyIdeasPageProps) {
   const isInspector = session.user.role === Role.INSPECTOR;
   const isPrivileged = isAdmin || isInspector;
 
-  // Tabs: 'submitted' | 'assigned' | 'inspecting' (privileged only)
-  const validTabs = ['submitted', 'assigned', ...(isPrivileged ? ['inspecting'] : [])];
+  // Tabs: 'submitted' | 'assigned' | 'inspecting' (privileged only) | 'drafts'
+  const validTabs = ['submitted', 'assigned', 'drafts', ...(isPrivileged ? ['inspecting'] : [])];
   const activeTab = validTabs.includes(tabParam ?? '') ? tabParam! : 'submitted';
 
   let whereClause: Record<string, unknown> = {};
 
   if (activeTab === 'submitted') {
-    whereClause = { submitterId: userId };
+    whereClause = { submitterId: userId, status: { not: 'DRAFT' as const } };
+  } else if (activeTab === 'drafts') {
+    whereClause = { submitterId: userId, status: 'DRAFT' as const };
   } else if (activeTab === 'assigned') {
     // Ideas assigned to this user (via Assignment model)
     whereClause = {
@@ -72,6 +74,7 @@ export default async function MyIdeasPage({ searchParams }: MyIdeasPageProps) {
 
   const tabs = [
     { key: 'submitted', label: 'Submitted by me' },
+    { key: 'drafts',    label: 'My Drafts' },
     { key: 'assigned', label: 'Assigned to me' },
     ...(isPrivileged ? [{ key: 'inspecting', label: 'Inspecting' }] : []),
   ];
