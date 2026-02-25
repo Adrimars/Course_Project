@@ -18,7 +18,7 @@
     "db:generate": "prisma generate"
   },
   "prisma": {
-    "seed": "node --loader ts-node/transpile-only prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

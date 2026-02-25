@@ -11,11 +11,11 @@ test.describe('Idea Submission Flow (US2)', () => {
   });
 
   test('shows submit idea link on dashboard', async ({ page }) => {
-    await expect(page.getByRole('link', { name: /submit idea/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /submit idea/i }).first()).toBeVisible();
   });
 
   test('navigates to idea submission form', async ({ page }) => {
-    await page.getByRole('link', { name: /submit idea/i }).click();
+    await page.getByRole('link', { name: /submit idea/i }).first().click();
     await expect(page).toHaveURL(/\/ideas\/new/);
     await expect(page.getByRole('heading', { name: /submit.*idea/i })).toBeVisible();
   });
@@ -23,7 +23,7 @@ test.describe('Idea Submission Flow (US2)', () => {
   test('shows validation errors for empty form submission', async ({ page }) => {
     await page.goto('/ideas/new');
     await page.getByRole('button', { name: /submit/i }).click();
-    await expect(page.getByText(/title.*required|at least/i)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/title.*required|at least/i).first()).toBeVisible({ timeout: 5_000 });
   });
 
   test('successfully submits a valid idea', async ({ page }) => {
@@ -46,20 +46,22 @@ test.describe('Idea Submission Flow (US2)', () => {
   });
 
   test('idea appears on the dashboard after submission', async ({ page }) => {
-    await page.goto('/dashboard');
-    await expect(page.getByText(/My Innovation Idea for the Future Company/i)).toBeVisible({
+    // Dashboard now shows analytics; browse /ideas to find the submitted idea
+    await page.goto('/ideas');
+    await expect(page.getByText(/My Innovation Idea for the Future Company/i).first()).toBeVisible({
       timeout: 5_000,
     });
   });
 
   test('idea detail page shows all required sections', async ({ page }) => {
-    await page.goto('/dashboard');
+    // Browse /ideas to find the submitted idea, then click through to the detail page
+    await page.goto('/ideas');
     const card = page.getByText(/My Innovation Idea for the Future Company/i).first();
     await card.click();
 
     // Should be on idea detail page
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     // Visibility toggle visible to owner
-    await expect(page.getByText(/visibility/i)).toBeVisible();
+    await expect(page.getByText(/visibility/i).first()).toBeVisible();
   });
 });

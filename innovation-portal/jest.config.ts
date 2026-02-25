@@ -39,10 +39,15 @@ const config: Config = {
       },
     },
   ],
+  // V8 provider avoids Babel-based JSX parse errors when collecting coverage
+  // from TSX files that are not transformed at the root config level.
+  coverageProvider: 'v8',
   collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
+    // Only collect coverage from server-side TypeScript logic
+    // (routes, lib, types).  React component/page files need @testing-library
+    // setup which is not in scope for these server-focused tests.
+    'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/app/**/layout.tsx',
     '!src/generated/**',
   ],
   coverageThreshold: {

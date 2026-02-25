@@ -55,8 +55,9 @@ test.describe('Authentication flow (US1)', () => {
     await page.getByRole('textbox', { name: 'Password' }).fill('WrongPass1!');
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByRole('alert')).toContainText('Invalid');
+    // Use filter to avoid strict-mode violation with the Next.js route announcer
+    await expect(page.getByRole('alert').filter({ hasText: 'Invalid' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Invalid' })).toContainText('Invalid');
   });
 
   test('shows client-side validation errors for weak password on register', async ({ page }) => {
@@ -68,6 +69,7 @@ test.describe('Authentication flow (US1)', () => {
 
     // Should show inline validation errors, not navigate away
     await expect(page).toHaveURL('/register');
-    await expect(page.getByRole('alert')).toBeVisible();
+    // Use filter to avoid strict-mode violation with the Next.js route announcer
+    await expect(page.getByRole('alert').filter({ hasText: /.+/ }).first()).toBeVisible();
   });
 });
