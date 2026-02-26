@@ -132,6 +132,8 @@ model Idea {
   stageReviews  StageReview[]
   scores        IdeaScore[]     // Phase 7: multi-dimension scores
 
+  @@index([status, visibility])
+  @@index([submitterId])
   @@map("ideas")
 }
 
@@ -281,6 +283,7 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
@@ -300,6 +303,7 @@ model IdeaScore {
   scorer User @relation("scorer", fields: [scorerId], references: [id], onDelete: Cascade)
 
   @@unique([ideaId, scorerId])
+  @@index([ideaId])
   @@map("idea_scores")
 }
 

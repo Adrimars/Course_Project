@@ -26,7 +26,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const { id: ideaId } = await params;
 
-    const body = await req.json();
+    let body: unknown;
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const parsed = stageReviewSchema.safeParse(body);
     if (!parsed.success) {
         return NextResponse.json(

@@ -40,7 +40,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   const parsed = roleUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid role value.' }, { status: 400 });

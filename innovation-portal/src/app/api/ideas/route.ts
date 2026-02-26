@@ -14,7 +14,7 @@ import {
   MAX_SINGLE_FILE_SIZE,
 } from '@/lib/upload';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile } from 'fs/promises';
+import { writeFile, unlink } from 'fs/promises';
 import path from 'path';
 
 // ─── GET /api/ideas — Paginated idea list ─────────────────────────────────────
@@ -67,6 +67,29 @@ export async function GET(req: NextRequest) {
       ],
     });
   }
+  // Validate filter values against known enums before passing to Prisma
+  const VALID_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'INSPECTING'];
+  const VALID_CATEGORIES = ['TECHNOLOGY', 'PROCESS', 'PRODUCT', 'COST_SAVING', 'CUSTOMER_EXPERIENCE', 'OTHER'];
+  const VALID_VISIBILITIES = ['PUBLIC', 'PRIVATE'];
+
+  if (statusFilter && !VALID_STATUSES.includes(statusFilter)) {
+    return NextResponse.json({ error: 'Invalid status filter' }, { status: 400 });
+  }
+  if (categoryFilter && !VALID_CATEGORIES.includes(categoryFilter)) {
+    return NextResponse.json({ error: 'Invalid category filter' }, { status: 400 });
+  }
+  if (visibilityFilter && !VALID_VISIBILITIES.includes(visibilityFilter)) {
+    return NextResponse.json({ error: 'Invalid visibility filter' }, { status: 400 });
+  }
+
+  // Non-privileged users cannot filter by INSPECTING or DRAFT
+  if (statusFilter && !isPrivileged && ['INSPECTING', 'DRAFT'].includes(statusFilter)) {
+    return NextResponse.json({
+      data: [],
+      pagination: buildPaginationMeta(page, 0),
+    });
+  }
+
   if (statusFilter) {
     searchConditions.push({ status: statusFilter });
   }
@@ -144,12 +167,12 @@ export async function POST(req: NextRequest) {
   const isDraft = formData.get('isDraft') === 'true';
 
   const textFields = {
-    title:       formData.get('title'),
+    title: formData.get('title'),
     description: formData.get('description'),
-    category:    formData.get('category'),
-    visibility:  formData.get('visibility') ?? 'PUBLIC',
-    metadata:    parsedMetadata,
-    videoLinks:  parsedVideoLinks,
+    category: formData.get('category'),
+    visibility: formData.get('visibility') ?? 'PUBLIC',
+    metadata: parsedMetadata,
+    videoLinks: parsedVideoLinks,
   };
 
   // Use relaxed schema for drafts, full schema for submissions
@@ -244,45 +267,56 @@ export async function POST(req: NextRequest) {
     await writeFile(path.join(uploadDir, storageFilename), buffer);
 
     savedFiles.push({
-      storagePath:  storageFilename,
+      storagePath: storageFilename,
       originalName: file.name,
-      mimeType:     detected.mime,
-      size:         file.size,
+      mimeType: detected.mime,
+      size: file.size,
       displayOrder: i,
     });
   }
 
   // ─── Create idea + attachments in a Prisma transaction (spec CHK048) ─────────────
-  const idea = await prisma.$transaction(async (tx) => {
-    const created = await tx.idea.create({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: {
-        title:       title ?? '',
-        description: description ?? '',
-        category:    category ?? 'OTHER',
-        status:      isDraft ? 'DRAFT' : 'SUBMITTED',
-        visibility,
-        metadata:   metadata   ?? undefined,
-        videoLinks: videoLinks && videoLinks.length > 0 ? videoLinks : undefined,
-        submitterId: session.user.id,
-        ...(savedFiles.length > 0 && {
+  try {
+    const idea = await prisma.$transaction(async (tx) => {
+      const created = await tx.idea.create({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: {
+          title: title ?? '',
+          description: description ?? '',
+          category: category ?? 'OTHER',
+          status: isDraft ? 'DRAFT' : 'SUBMITTED',
+          visibility,
+          metadata: metadata ?? undefined,
+          videoLinks: videoLinks && videoLinks.length > 0 ? videoLinks : undefined,
+          submitterId: session.user.id,
+          ...(savedFiles.length > 0 && {
+            attachments: {
+              create: savedFiles,
+            },
+          }),
+        } as any,
+        include: {
           attachments: {
-            create: savedFiles,
+            select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+            orderBy: { displayOrder: 'asc' },
           },
-        }),
-      } as any,
-      include: {
-        attachments: {
-          select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
-          orderBy: { displayOrder: 'asc' },
+          submitter: {
+            select: { id: true, name: true, email: true },
+          },
         },
-        submitter: {
-          select: { id: true, name: true, email: true },
-        },
-      },
+      });
+      return created;
     });
-    return created;
-  });
 
-  return NextResponse.json(idea, { status: 201 });
+    return NextResponse.json(idea, { status: 201 });
+  } catch (error) {
+    // Clean up orphaned files on disk if the DB transaction failed
+    await Promise.allSettled(
+      savedFiles.map((f) =>
+        unlink(path.join(uploadDir, f.storagePath)).catch(() => { })
+      )
+    );
+    console.error('[POST /api/ideas] transaction failed, cleaned orphaned files', error);
+    return NextResponse.json({ error: 'Failed to create idea' }, { status: 500 });
+  }
 }

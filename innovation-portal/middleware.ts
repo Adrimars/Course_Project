@@ -31,7 +31,11 @@ const PUBLIC_PAGE_PATHS = ['/login', '/register'];
 const API_AUTH_PREFIX = '/api/auth';
 
 function getSecret(): Uint8Array {
-  return new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? '');
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET is not configured — aborting middleware');
+  }
+  return new TextEncoder().encode(secret);
 }
 
 async function hasValidBearerToken(request: NextRequest): Promise<boolean> {

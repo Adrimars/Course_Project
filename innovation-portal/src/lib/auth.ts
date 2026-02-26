@@ -46,16 +46,26 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role as Role;
+        token.roleRefreshedAt = Date.now();
       }
-      // Always refresh role from DB to pick up admin promotions/demotions
-      // without requiring re-login
-      if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { role: true },
-        });
-        if (dbUser) {
-          token.role = dbUser.role as Role;
+      // Refresh role from DB at most once every 5 minutes to pick up
+      // admin promotions/demotions without requiring re-login, while
+      // avoiding a DB query on every single request.
+      const ROLE_TTL_MS = 5 * 60 * 1000;
+      const lastRefresh = (token.roleRefreshedAt as number | undefined) ?? 0;
+      if (token.id && Date.now() - lastRefresh > ROLE_TTL_MS) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true },
+          });
+          if (dbUser) {
+            token.role = dbUser.role as Role;
+          }
+          token.roleRefreshedAt = Date.now();
+        } catch (err) {
+          // Gracefully fallback to the previously cached role on DB errors
+          console.error('[JWT callback] role refresh failed, using cached role', err);
         }
       }
       return token;

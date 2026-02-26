@@ -8,6 +8,34 @@ import { createNotification } from '@/lib/notifications';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+// Shared include clause for idea detail queries (DRY — used in GET + auto-transition re-fetch)
+const IDEA_DETAIL_INCLUDE = {
+  submitter: { select: { id: true, name: true, email: true } },
+  attachments: {
+    select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
+    orderBy: { displayOrder: 'asc' as const },
+  },
+  statusHistory: {
+    orderBy: { createdAt: 'asc' as const },
+    include: { admin: { select: { name: true } } },
+  },
+  pipeline: {
+    include: {
+      stages: {
+        orderBy: { stageOrder: 'asc' as const },
+        include: { reviewer: { select: { id: true, name: true } } },
+      },
+    },
+  },
+  stageReviews: {
+    orderBy: { createdAt: 'asc' as const },
+    include: {
+      stage: { select: { name: true, stageOrder: true } },
+      reviewer: { select: { id: true, name: true } },
+    },
+  },
+};
+
 // ─── GET /api/ideas/[id] — Idea detail ───────────────────────────────────────
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
@@ -23,36 +51,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const idea = await prisma.idea.findUnique({
     where: { id },
-    include: {
-      submitter: {
-        select: { id: true, name: true, email: true },
-      },
-      attachments: {
-        select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
-        orderBy: { displayOrder: 'asc' },
-      },
-      statusHistory: {
-        orderBy: { createdAt: 'asc' },
-        include: {
-          admin: { select: { name: true } },
-        },
-      },
-      pipeline: {
-        include: {
-          stages: {
-            orderBy: { stageOrder: 'asc' },
-            include: { reviewer: { select: { id: true, name: true } } },
-          },
-        },
-      },
-      stageReviews: {
-        orderBy: { createdAt: 'asc' },
-        include: {
-          stage: { select: { name: true, stageOrder: true } },
-          reviewer: { select: { id: true, name: true } },
-        },
-      },
-    },
+    include: IDEA_DETAIL_INCLUDE,
   });
 
   if (!idea) {
@@ -104,32 +103,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Re-fetch the updated idea
     const refreshed = await prisma.idea.findUnique({
       where: { id },
-      include: {
-        submitter: { select: { id: true, name: true, email: true } },
-        attachments: {
-          select: { id: true, originalName: true, mimeType: true, size: true, displayOrder: true },
-          orderBy: { displayOrder: 'asc' },
-        },
-        statusHistory: {
-          orderBy: { createdAt: 'asc' },
-          include: { admin: { select: { name: true } } },
-        },
-        pipeline: {
-          include: {
-            stages: {
-              orderBy: { stageOrder: 'asc' },
-              include: { reviewer: { select: { id: true, name: true } } },
-            },
-          },
-        },
-        stageReviews: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            stage: { select: { name: true, stageOrder: true } },
-            reviewer: { select: { id: true, name: true } },
-          },
-        },
-      },
+      include: IDEA_DETAIL_INCLUDE,
     });
     return NextResponse.json(refreshed);
   }
@@ -146,7 +120,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   const isAdmin = session.user.role === Role.ADMIN;
   const isInspector = session.user.role === Role.INSPECTOR;
   const isPrivileged = isAdmin || isInspector;
@@ -256,7 +235,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     const newStatus = body.status as never;
-    const feedback: string | undefined = body.feedback;
+    const feedback = body.feedback as string | undefined;
 
     // Validate status value exists in schema
     const allStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'REJECTED', 'INSPECTING'];
@@ -266,6 +245,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     // BUG-6 FIX: Enforce valid status transitions
     const VALID_TRANSITIONS: Record<string, string[]> = {
+      DRAFT: [],  // Drafts use a separate code path
       SUBMITTED: ['UNDER_REVIEW'],
       UNDER_REVIEW: ['ACCEPTED', 'REJECTED', 'INSPECTING'],
       ACCEPTED: ['UNDER_REVIEW'],
@@ -295,7 +275,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     // spec CHK029: Optimistic locking — check updatedAt if provided
-    if (body.updatedAt && new Date(body.updatedAt).getTime() !== idea.updatedAt.getTime()) {
+    if (body.updatedAt && new Date(body.updatedAt as string).getTime() !== idea.updatedAt.getTime()) {
       return NextResponse.json(
         {
           error: 'This idea has been updated by another session. Please refresh.',
@@ -336,16 +316,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return updatedIdea;
     });
 
-    // Phase 7: Notify idea submitter about status change
+    // Phase 7: Notify idea submitter about status change (fire-and-forget)
     if (idea.submitterId && idea.submitterId !== session.user.id) {
       const statusLabel = (newStatus as string).replace(/_/g, ' ').toLowerCase();
-      await createNotification({
+      createNotification({
         userId: idea.submitterId,
         type: 'STATUS_CHANGE',
         title: 'Idea status updated',
         message: `Your idea "${idea.title}" was changed to ${statusLabel}${feedback ? `: ${feedback.slice(0, 100)}` : ''}.`,
         link: `/ideas/${id}`,
-      });
+      }).catch((err) => console.error('[Notification] failed to send status change notification', err));
     }
 
     return NextResponse.json(updated);

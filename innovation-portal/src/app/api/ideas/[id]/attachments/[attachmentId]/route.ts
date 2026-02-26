@@ -6,6 +6,7 @@ import { Role } from '@/types';
 import { uploadDir } from '@/lib/upload';
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
+import { Readable } from 'stream';
 import path from 'path';
 
 type RouteParams = { params: Promise<{ id: string; attachmentId: string }> };
@@ -25,8 +26,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   const { id, attachmentId } = await params;
-  const isAdmin      = session.user.role === Role.ADMIN;
-  const isInspector  = session.user.role === Role.INSPECTOR;
+  const isAdmin = session.user.role === Role.ADMIN;
+  const isInspector = session.user.role === Role.INSPECTOR;
   const isPrivileged = isAdmin || isInspector;
 
   // Fetch idea + specific attachment in one query
@@ -60,31 +61,33 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Resolve the storage path from the UUID filename stored in DB
   const filePath = path.join(uploadDir, attachment.storagePath);
+  const resolved = path.resolve(filePath);
+  const resolvedUploadDir = path.resolve(uploadDir);
+
+  // Guard against path traversal
+  if (!resolved.startsWith(resolvedUploadDir + path.sep) && resolved !== resolvedUploadDir) {
+    return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+  }
 
   try {
-    await stat(filePath);
+    await stat(resolved);
   } catch {
     return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
   }
 
   // Stream file with Content-Disposition header
-  const stream       = createReadStream(filePath);
+  const stream = createReadStream(resolved);
   const originalName = encodeURIComponent(attachment.originalName);
 
-  const webStream = new ReadableStream({
-    start(controller) {
-      stream.on('data',  (chunk) => controller.enqueue(chunk));
-      stream.on('end',   ()      => controller.close());
-      stream.on('error', (err)   => controller.error(err));
-    },
-  });
+  // Use Node.js built-in Readable.toWeb() for proper backpressure handling
+  const webStream = Readable.toWeb(stream) as ReadableStream;
 
   return new NextResponse(webStream, {
     headers: {
-      'Content-Type':        attachment.mimeType,
+      'Content-Type': attachment.mimeType,
       'Content-Disposition': `attachment; filename="${originalName}"`,
-      'Content-Length':      attachment.size.toString(),
-      'Cache-Control':       'no-store',
+      'Content-Length': attachment.size.toString(),
+      'Cache-Control': 'no-store',
     },
   });
 }

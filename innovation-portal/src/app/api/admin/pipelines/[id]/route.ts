@@ -58,7 +58,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     const { id } = await params;
-    const body = await req.json();
+    let body: unknown;
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const parsed = pipelineUpdateSchema.safeParse(body);
     if (!parsed.success) {
         return NextResponse.json(
@@ -77,49 +82,71 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const { name, description, stages } = parsed.data;
 
-    const updated = await prisma.$transaction(async (tx) => {
-        // Update pipeline fields
-        await tx.reviewPipeline.update({
-            where: { id },
-            data: {
-                ...(name !== undefined && { name }),
-                ...(description !== undefined && { description: description || null }),
-            },
+    try {
+        const updated = await prisma.$transaction(async (tx) => {
+            // Update pipeline fields
+            await tx.reviewPipeline.update({
+                where: { id },
+                data: {
+                    ...(name !== undefined && { name }),
+                    ...(description !== undefined && { description: description || null }),
+                },
+            });
+
+            // If stages are provided, replace them
+            if (stages) {
+                // Guard: don't allow stage modification if ideas are actively under review
+                const inFlightCount = await tx.idea.count({
+                    where: {
+                        pipelineId: id,
+                        status: { in: ['UNDER_REVIEW', 'INSPECTING'] },
+                    },
+                });
+                if (inFlightCount > 0) {
+                    throw new Error('PIPELINE_IN_USE');
+                }
+
+                await tx.reviewStage.deleteMany({ where: { pipelineId: id } });
+                await Promise.all(
+                    stages.map((stage, index) =>
+                        tx.reviewStage.create({
+                            data: {
+                                pipelineId: id,
+                                name: stage.name,
+                                description: stage.description || null,
+                                stageOrder: index + 1,
+                                reviewerId: stage.reviewerId || null,
+                            },
+                        })
+                    )
+                );
+            }
+
+            return tx.reviewPipeline.findUnique({
+                where: { id },
+                include: {
+                    stages: {
+                        orderBy: { stageOrder: 'asc' },
+                        include: {
+                            reviewer: { select: { id: true, name: true } },
+                        },
+                    },
+                    _count: { select: { ideas: true } },
+                },
+            });
         });
 
-        // If stages are provided, replace them
-        if (stages) {
-            await tx.reviewStage.deleteMany({ where: { pipelineId: id } });
-            await Promise.all(
-                stages.map((stage, index) =>
-                    tx.reviewStage.create({
-                        data: {
-                            pipelineId: id,
-                            name: stage.name,
-                            description: stage.description || null,
-                            stageOrder: index + 1,
-                            reviewerId: stage.reviewerId || null,
-                        },
-                    })
-                )
+        return NextResponse.json(updated);
+    } catch (error) {
+        if (error instanceof Error && error.message === 'PIPELINE_IN_USE') {
+            return NextResponse.json(
+                { error: 'Cannot modify stages while ideas are actively under review in this pipeline. Remove those ideas from the pipeline first.' },
+                { status: 409 }
             );
         }
-
-        return tx.reviewPipeline.findUnique({
-            where: { id },
-            include: {
-                stages: {
-                    orderBy: { stageOrder: 'asc' },
-                    include: {
-                        reviewer: { select: { id: true, name: true } },
-                    },
-                },
-                _count: { select: { ideas: true } },
-            },
-        });
-    });
-
-    return NextResponse.json(updated);
+        console.error('[PATCH /api/admin/pipelines/[id]]', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
 
 // ─── DELETE /api/admin/pipelines/[id] — Deactivate pipeline ─────────────────

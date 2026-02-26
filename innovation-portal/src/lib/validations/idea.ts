@@ -24,7 +24,16 @@ const VisibilityValues = ['PUBLIC', 'PRIVATE'] as const;
  * Phase 2: Category-specific metadata schemas
  * Each category has optional structured fields for richer submissions.
  */
-export const categoryMetadataSchema = z.record(z.string(), z.string()).optional();
+export const categoryMetadataSchema = z
+  .record(
+    z.string().max(50, 'Metadata key too long'),
+    z.string().max(500, 'Metadata value too long')
+  )
+  .refine(
+    (obj) => Object.keys(obj).length <= 20,
+    'Too many metadata fields (max 20)'
+  )
+  .optional();
 
 // Per-category field definitions (used for rendering in the form)
 export const CATEGORY_FIELDS: Record<string, Array<{ key: string; label: string; placeholder: string; type: 'text' | 'textarea' | 'select'; options?: string[] }>> = {

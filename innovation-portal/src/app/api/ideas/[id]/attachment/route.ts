@@ -6,6 +6,7 @@ import { Role } from '@/types';
 import { uploadDir } from '@/lib/upload';
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
+import { Readable } from 'stream';
 import path from 'path';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -29,6 +30,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
   const isAdmin = session.user.role === Role.ADMIN;
+  const isInspector = session.user.role === Role.INSPECTOR;
+  const isPrivileged = isAdmin || isInspector;
 
   // Fetch the idea with its first attachment (ordered by displayOrder)
   const idea = await prisma.idea.findUnique({
@@ -52,9 +55,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Apply same access control as idea detail (spec FR-007d / CHK009)
   if (
-    idea.visibility === 'PRIVATE' &&
-    !isAdmin &&
-    idea.submitterId !== session.user.id
+    (idea.visibility === 'PRIVATE' && !isPrivileged && idea.submitterId !== session.user.id) ||
+    (idea.status === 'INSPECTING' && !isPrivileged)
   ) {
     return NextResponse.json(
       { error: 'You do not have access to this file.' },
@@ -64,26 +66,27 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Resolve the storage path from the UUID filename stored in DB
   const filePath = path.join(uploadDir, attachment.storagePath);
+  const resolved = path.resolve(filePath);
+  const resolvedUploadDir = path.resolve(uploadDir);
+
+  // Guard against path traversal
+  if (!resolved.startsWith(resolvedUploadDir + path.sep) && resolved !== resolvedUploadDir) {
+    return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+  }
 
   // Verify the file exists on disk
   try {
-    await stat(filePath);
+    await stat(resolved);
   } catch {
     return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
   }
 
   // Stream the file with Content-Disposition: attachment header
-  const stream = createReadStream(filePath);
+  const stream = createReadStream(resolved);
   const originalName = encodeURIComponent(attachment.originalName);
 
-  // Convert Node.js ReadableStream to Web ReadableStream
-  const webStream = new ReadableStream({
-    start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk));
-      stream.on('end', () => controller.close());
-      stream.on('error', (err) => controller.error(err));
-    },
-  });
+  // Use Node.js built-in Readable.toWeb() for proper backpressure handling
+  const webStream = Readable.toWeb(stream) as ReadableStream;
 
   return new NextResponse(webStream, {
     headers: {

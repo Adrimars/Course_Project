@@ -140,16 +140,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         include: { scorer: { select: { id: true, name: true } } },
     });
 
-    // Notify idea submitter about the score (if they exist and are not the scorer)
+    // Notify idea submitter about the score (fire-and-forget)
     if (idea.submitterId && idea.submitterId !== session.user.id) {
         const avgScore = (feasibility + impact + novelty + costEffectiveness) / 4;
-        await createNotification({
+        createNotification({
             userId: idea.submitterId,
             type: 'SCORE_RECEIVED',
             title: 'Your idea was scored',
             message: `${session.user.name} scored "${idea.title}" with an average of ${avgScore.toFixed(1)}/10.`,
             link: `/ideas/${id}`,
-        });
+        }).catch((err) => console.error('[Notification] failed to send score notification', err));
     }
 
     return NextResponse.json(score, { status: 201 });
