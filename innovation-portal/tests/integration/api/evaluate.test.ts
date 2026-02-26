@@ -10,10 +10,13 @@ const mockIdeaUpdate = jest.fn();
 const mockHistoryCreate = jest.fn();
 const mockTransaction = jest.fn();
 
+const mockNotificationCreate = jest.fn();
+
 jest.mock('@/lib/db', () => ({
   prisma: {
     idea: { findUnique: mockIdeaFindUnique, update: mockIdeaUpdate },
     statusHistory: { create: mockHistoryCreate },
+    notification: { create: mockNotificationCreate },
     $transaction: mockTransaction,
   },
 }));
@@ -78,10 +81,18 @@ describe('PATCH /api/ideas/[id] – admin evaluation', () => {
     expect(res.status).toBe(422);
   });
 
-  it('returns 422 when feedback is too short', async () => {
+  it('accepts short feedback (no min-length validation on PATCH)', async () => {
     (getServerSession as jest.Mock).mockResolvedValue(adminSession);
+    const updatedIdea = { ...baseIdea, status: 'ACCEPTED' };
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        idea: { update: jest.fn().mockResolvedValue(updatedIdea) },
+        statusHistory: { create: jest.fn().mockResolvedValue({}) },
+      })
+    );
+    mockNotificationCreate.mockResolvedValue({});
     const res = await PATCH(makeRequest({ status: 'ACCEPTED', feedback: 'short' }), makeCtx());
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(200);
   });
 
   it('returns 409 on optimistic lock conflict', async () => {

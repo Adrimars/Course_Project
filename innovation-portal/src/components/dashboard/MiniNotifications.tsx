@@ -4,26 +4,22 @@ import Link from 'next/link';
 
 type NotificationItem = {
     id: string;
-    ideaTitle: string;
-    fromStatus: string | null;
-    toStatus: string;
-    feedback: string | null;
-    actorName: string;
+    type: string;
+    title: string;
+    message: string;
+    link: string | null;
+    isRead: boolean;
     createdAt: string;
 };
 
-const STATUS_COLORS: Record<string, string> = {
-    SUBMITTED: 'bg-blue-100 text-blue-700',
-    UNDER_REVIEW: 'bg-amber-100 text-amber-700',
-    ACCEPTED: 'bg-green-100 text-green-700',
-    REJECTED: 'bg-red-100 text-red-700',
-    INSPECTING: 'bg-purple-100 text-purple-700',
-    DRAFT: 'bg-gray-100 text-gray-600',
+const TYPE_ICONS: Record<string, string> = {
+    STATUS_CHANGE: '🔄',
+    ASSIGNMENT: '📋',
+    JOIN_REQUEST: '🤝',
+    SCORE_RECEIVED: '⭐',
+    FEEDBACK: '💬',
+    SYSTEM: '🔔',
 };
-
-function formatStatus(status: string) {
-    return status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-}
 
 function timeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -44,9 +40,9 @@ export function MiniNotifications({ items }: { items: NotificationItem[] }) {
                 <div className="flex items-center gap-2">
                     <span className="text-lg">🔔</span>
                     <h3 className="text-sm font-semibold text-gray-900">Recent Activity</h3>
-                    {items.length > 0 && (
+                    {items.filter((n) => !n.isRead).length > 0 && (
                         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                            {items.length}
+                            {items.filter((n) => !n.isRead).length} new
                         </span>
                     )}
                 </div>
@@ -66,39 +62,26 @@ export function MiniNotifications({ items }: { items: NotificationItem[] }) {
             ) : (
                 <div className="divide-y divide-gray-50">
                     {items.map((item) => (
-                        <div key={item.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div
+                            key={item.id}
+                            className={`px-4 py-3 transition-colors ${!item.isRead ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                        >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-gray-800">
-                                        {item.ideaTitle}
-                                    </p>
-                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                        {item.fromStatus && (
-                                            <>
-                                                <span
-                                                    className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[item.fromStatus] || 'bg-gray-100 text-gray-600'}`}
-                                                >
-                                                    {formatStatus(item.fromStatus)}
-                                                </span>
-                                                <span className="text-gray-400">→</span>
-                                            </>
-                                        )}
-                                        <span
-                                            className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[item.toStatus] || 'bg-gray-100 text-gray-600'}`}
-                                        >
-                                            {formatStatus(item.toStatus)}
-                                        </span>
-                                    </div>
-                                    {item.feedback && (
-                                        <p className="mt-1 truncate text-xs text-gray-500 italic">
-                                            &quot;{item.feedback}&quot;
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-sm">{TYPE_ICONS[item.type] || '🔔'}</span>
+                                        <p className="truncate text-sm font-medium text-gray-800">
+                                            {item.title}
                                         </p>
-                                    )}
+                                        {!item.isRead && (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                                        )}
+                                    </div>
+                                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                                        {item.message}
+                                    </p>
                                 </div>
-                                <div className="flex-shrink-0 text-right">
-                                    <p className="text-[10px] text-gray-400">{timeAgo(item.createdAt)}</p>
-                                    <p className="mt-0.5 text-[10px] text-gray-400">{item.actorName}</p>
-                                </div>
+                                <p className="flex-shrink-0 text-[10px] text-gray-400">{timeAgo(item.createdAt)}</p>
                             </div>
                         </div>
                     ))}

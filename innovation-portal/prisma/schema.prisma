@@ -43,6 +43,15 @@ enum StageDecision {
   RETURNED
 }
 
+enum NotificationType {
+  STATUS_CHANGE
+  ASSIGNMENT
+  JOIN_REQUEST
+  SCORE_RECEIVED
+  FEEDBACK
+  SYSTEM
+}
+
 enum JoinRequestStatus {
   PENDING
   APPROVED
@@ -86,6 +95,10 @@ model User {
   stageReviewing  ReviewStage[] @relation("stageReviewer")
   stageReviewsBy  StageReview[] @relation("stageReviewAuthor")
 
+  // Phase 7: Notifications + Scoring
+  notifications Notification[]
+  ideaScores    IdeaScore[]    @relation("scorer")
+
   // NextAuth relations
   accounts Account[]
   sessions Session[]
@@ -117,6 +130,7 @@ model Idea {
   joinRequests  JoinRequest[]
   pipeline      ReviewPipeline? @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   stageReviews  StageReview[]
+  scores        IdeaScore[]     // Phase 7: multi-dimension scores
 
   @@map("ideas")
 }
@@ -251,6 +265,42 @@ model StageReview {
   reviewer User        @relation("stageReviewAuthor", fields: [reviewerId], references: [id], onDelete: Cascade)
 
   @@map("stage_reviews")
+}
+
+// ─── Phase 7: Notifications + Scoring Models ─────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  message   String           @db.VarChar(1000)
+  link      String?          @db.VarChar(500)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model IdeaScore {
+  id                String   @id @default(cuid())
+  ideaId            String
+  scorerId          String
+  feasibility       Int      // 1-10
+  impact            Int      // 1-10
+  novelty           Int      // 1-10
+  costEffectiveness Int      // 1-10
+  comment           String?  @db.VarChar(2000)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  idea   Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  scorer User @relation("scorer", fields: [scorerId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, scorerId])
+  @@map("idea_scores")
 }
 
 // ─── NextAuth Models ─────────────────────────────────────────────────────────

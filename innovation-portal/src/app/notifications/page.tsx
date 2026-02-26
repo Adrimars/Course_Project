@@ -2,49 +2,58 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
+import { NotificationList } from '@/components/ideas/NotificationList';
+import { prisma } from '@/lib/db';
 
 export default async function NotificationsPage() {
     const session = await getServerSession(authOptions);
     if (!session) redirect('/login');
+
+    const limit = 20;
+
+    const [notifications, totalCount] = await Promise.all([
+        prisma.notification.findMany({
+            where: { userId: session.user.id },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+        }),
+        prisma.notification.count({ where: { userId: session.user.id } }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const items = notifications.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        link: n.link,
+        isRead: n.isRead,
+        createdAt: n.createdAt.toISOString(),
+    }));
 
     return (
         <>
             <Navbar />
             <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
                 {/* Header */}
-                <div className="mb-8">
+                <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900">🔔 Notifications</h1>
                     <p className="mt-1 text-sm text-gray-500">
                         Stay updated on status changes, feedback, and activity on your ideas.
                     </p>
                 </div>
 
-                {/* Coming Soon Card */}
-                <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                        <span className="text-3xl">🔔</span>
-                    </div>
-                    <h2 className="text-lg font-semibold text-gray-700">Coming Soon</h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-                        Notifications will let you know when your ideas receive feedback,
-                        change status, or get scored by reviewers. This feature is currently
-                        under development.
-                    </p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                            Status Updates
-                        </span>
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                            Review Feedback
-                        </span>
-                        <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700">
-                            Pipeline Progress
-                        </span>
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                            Assignments
-                        </span>
-                    </div>
-                </div>
+                <NotificationList
+                    initialItems={items}
+                    initialPagination={{
+                        page: 1,
+                        totalPages,
+                        totalCount,
+                        hasNext: totalPages > 1,
+                        hasPrev: false,
+                    }}
+                />
             </main>
         </>
     );

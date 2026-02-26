@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       ],
     };
 
-  const [statusCounts, totalIdeas, myIdeasCount, recentActivity, topIdeas] = await Promise.all([
+  const [statusCounts, totalIdeas, myIdeasCount, recentNotifications, topIdeas] = await Promise.all([
     prisma.idea.groupBy({
       by: ['status'],
       where: visibilityFilter,
@@ -40,55 +40,72 @@ export default async function DashboardPage() {
     prisma.idea.count({ where: visibilityFilter }),
     prisma.idea.count({ where: { submitterId: session.user.id } }),
 
-    // Notifications: recent status changes relevant to this user
-    prisma.statusHistory.findMany({
-      where: isPrivileged
-        ? {} // admins/inspectors see all activity
-        : { idea: { submitterId: session.user.id } }, // regular users see their own ideas
+    // Phase 7: Real notifications for this user
+    prisma.notification.findMany({
+      where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: {
-        idea: { select: { title: true } },
-        admin: { select: { name: true } },
-      },
     }),
 
-    // Leaderboard: accepted ideas first, then most recently updated
+    // Phase 7: Leaderboard — ideas with scores, ranked by average
     prisma.idea.findMany({
       where: {
         ...visibilityFilter,
-        status: { in: ['ACCEPTED', 'UNDER_REVIEW', 'SUBMITTED'] as IdeaStatus[] },
+        scores: { some: {} },
       },
-      orderBy: [
-        { status: 'asc' }, // ACCEPTED sorts first alphabetically
-        { updatedAt: 'desc' },
-      ],
-      take: 5,
       include: {
         submitter: { select: { name: true } },
+        scores: {
+          select: {
+            feasibility: true,
+            impact: true,
+            novelty: true,
+            costEffectiveness: true,
+          },
+        },
       },
     }),
   ]);
 
-  // Transform data for the mini widgets
-  const notificationItems = recentActivity.map((h) => ({
-    id: h.id,
-    ideaTitle: h.idea.title,
-    fromStatus: h.fromStatus,
-    toStatus: h.toStatus,
-    feedback: h.feedback,
-    actorName: h.admin?.name ?? 'System',
-    createdAt: h.createdAt.toISOString(),
+  // Transform notification items
+  const notificationItems = recentNotifications.map((n) => ({
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    link: n.link,
+    isRead: n.isRead,
+    createdAt: n.createdAt.toISOString(),
   }));
 
-  const leaderboardItems = topIdeas.map((idea) => ({
-    id: idea.id,
-    title: idea.title,
-    submitterName: idea.submitter?.name ?? 'Unknown',
-    status: idea.status,
-    category: idea.category,
-    updatedAt: idea.updatedAt.toISOString(),
-  }));
+  // Compute scores and sort for leaderboard widget
+  const leaderboardItems = topIdeas
+    .map((idea) => {
+      const n = idea.scores.length;
+      if (n === 0) return null;
+      const totals = idea.scores.reduce(
+        (acc: { f: number; i: number; n: number; c: number }, s) => ({
+          f: acc.f + s.feasibility,
+          i: acc.i + s.impact,
+          n: acc.n + s.novelty,
+          c: acc.c + s.costEffectiveness,
+        }),
+        { f: 0, i: 0, n: 0, c: 0 }
+      );
+      const avgScore = (totals.f / n + totals.i / n + totals.n / n + totals.c / n) / 4;
+      return {
+        id: idea.id,
+        title: idea.title,
+        submitterName: idea.submitter?.name ?? 'Unknown',
+        status: idea.status,
+        category: idea.category,
+        avgScore: Math.round(avgScore * 100) / 100,
+        scoreCount: n,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .slice(0, 5);
 
   return (
     <>

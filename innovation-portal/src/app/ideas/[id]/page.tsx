@@ -22,6 +22,8 @@ import { prisma } from '@/lib/db';
 import { Role, Visibility } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { CATEGORY_FIELDS } from '@/lib/validations/idea';
+import { ScoreForm } from '@/components/ideas/ScoreForm';
+import { ScoreDisplay } from '@/components/ideas/ScoreDisplay';
 
 interface IdeaDetailPageProps {
   params: Promise<{ id: string }>;
@@ -128,6 +130,48 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
       orderBy: { name: 'asc' },
     });
   }
+
+  // Phase 7: Fetch scores for this idea
+  const ideaScores = await prisma.ideaScore.findMany({
+    where: { ideaId: id },
+    include: { scorer: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const myScore = ideaScores.find((s) => s.scorerId === session.user.id) ?? null;
+
+  // Compute score summary
+  const scoreSummary = ideaScores.length > 0 ? (() => {
+    const n = ideaScores.length;
+    const totals = ideaScores.reduce(
+      (acc, s) => ({
+        f: acc.f + s.feasibility, i: acc.i + s.impact,
+        n: acc.n + s.novelty, c: acc.c + s.costEffectiveness,
+      }),
+      { f: 0, i: 0, n: 0, c: 0 }
+    );
+    const aF = totals.f / n, aI = totals.i / n, aN = totals.n / n, aC = totals.c / n;
+    return {
+      avgScore: Math.round(((aF + aI + aN + aC) / 4) * 100) / 100,
+      avgFeasibility: Math.round(aF * 100) / 100,
+      avgImpact: Math.round(aI * 100) / 100,
+      avgNovelty: Math.round(aN * 100) / 100,
+      avgCostEffectiveness: Math.round(aC * 100) / 100,
+      scoreCount: n,
+    };
+  })() : null;
+
+  // Serialize score dates for client components
+  const serializedScores = ideaScores.map((s) => ({
+    id: s.id,
+    feasibility: s.feasibility,
+    impact: s.impact,
+    novelty: s.novelty,
+    costEffectiveness: s.costEffectiveness,
+    comment: s.comment,
+    createdAt: s.createdAt.toISOString(),
+    scorer: s.scorer,
+  }));
 
   return (
     <>
@@ -309,6 +353,33 @@ export default async function IdeaDetailPage({ params }: IdeaDetailPageProps) {
               pipelines={availablePipelines}
             />
           </section>
+        )}
+
+        {/* Phase 7: Scoring Section (non-draft ideas) */}
+        {!isDraft && (
+          <div className="mt-6">
+            <CollapsibleSection title="Scores" defaultOpen>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <ScoreDisplay
+                  scores={serializedScores}
+                  summary={scoreSummary}
+                  showIndividual={isPrivileged}
+                />
+                {canEvaluate && (
+                  <ScoreForm
+                    ideaId={displayIdea.id}
+                    existingScore={myScore ? {
+                      feasibility: myScore.feasibility,
+                      impact: myScore.impact,
+                      novelty: myScore.novelty,
+                      costEffectiveness: myScore.costEffectiveness,
+                      comment: myScore.comment,
+                    } : null}
+                  />
+                )}
+              </div>
+            </CollapsibleSection>
+          </div>
         )}
 
         {/* 8. Notes (collapsible, non-draft) */}

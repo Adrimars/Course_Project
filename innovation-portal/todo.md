@@ -158,9 +158,30 @@
 ## Phase 6: Blind Review 🕶️
 - [ ] Anonymous submissions · Hidden identities · Post-decision reveal
 
-## Phase 7: Scoring System ⭐
-- [ ] Scoring rubric · Multi-dimension scoring · Leaderboard
+## Phase 7: Scoring System ⭐ ✅
+- [x] Add `IdeaScore` model (feasibility, impact, novelty, costEffectiveness) with `@@unique([ideaId, scorerId])`
+- [x] Add `Notification` model + `NotificationType` enum
+- [x] Migration `20260226072809_phase7_scoring_notifications` applied
+- [x] `scoreSchema` Zod validation (4 dimensions, 1–10 integer each, optional comment)
+- [x] `src/lib/notifications.ts` — `createNotification()` + `createBulkNotifications()` helpers
+- [x] `GET/PATCH /api/notifications` — paginated list + mark-all-read
+- [x] `PATCH /api/notifications/[id]` — mark single as read
+- [x] `GET /api/notifications/count` — unread count for Navbar badge
+- [x] `GET/POST /api/ideas/[id]/scores` — scores CRUD (admin/inspector only for POST)
+- [x] `GET /api/leaderboard` — ranked ideas by weighted avg score, category filter, sort options
+- [x] Notification triggered on status change in `PATCH /api/ideas/[id]`
+- [x] `ScoreForm.tsx` — 4 sliders + comment, submit/update score
+- [x] `ScoreDisplay.tsx` — aggregated bars + individual reviews (admin)
+- [x] `NotificationList.tsx` — full page with all/unread filter, mark-read, pagination
+- [x] `/notifications` page — replaces "Coming Soon" with real data
+- [x] `/leaderboard` page — replaces "Coming Soon" with ranked scored ideas
+- [x] `/ideas/[id]` — scoring section (ScoreDisplay + ScoreForm for admin/inspector)
+- [x] Dashboard mini-widgets — `MiniNotifications` + `MiniLeaderboard` use real data
+- [x] Navbar — unread notification count badge (auto-refresh every 30s)
+- [x] Seed data: 5 `IdeaScore` entries + 6 `Notification` entries
+- [x] TypeScript clean — zero `tsc --noEmit` errors
+- [x] All 188 tests passing
 
 ---
 
-*Last updated: 2026-02-25 — Phase 4 complete*
+*Last updated: 2026-02-26 — Phase 7 complete*

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { visibilityUpdateSchema, ideaSubmitSchema, draftSaveSchema } from '@/lib/validations/idea';
 import { Role } from '@/types';
+import { createNotification } from '@/lib/notifications';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -334,6 +335,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       return updatedIdea;
     });
+
+    // Phase 7: Notify idea submitter about status change
+    if (idea.submitterId && idea.submitterId !== session.user.id) {
+      const statusLabel = (newStatus as string).replace(/_/g, ' ').toLowerCase();
+      await createNotification({
+        userId: idea.submitterId,
+        type: 'STATUS_CHANGE',
+        title: 'Idea status updated',
+        message: `Your idea "${idea.title}" was changed to ${statusLabel}${feedback ? `: ${feedback.slice(0, 100)}` : ''}.`,
+        link: `/ideas/${id}`,
+      });
+    }
 
     return NextResponse.json(updated);
   }

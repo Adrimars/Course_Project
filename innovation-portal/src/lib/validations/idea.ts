@@ -85,7 +85,7 @@ export const CATEGORY_TEMPLATES: Record<string, { title: string; description: st
  * Phase 3: Video link schema — accepts YouTube or Vimeo watch/embed URLs.
  */
 const youtubePattern = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/;
-const vimeoPattern   = /^https?:\/\/(www\.)?vimeo\.com\/\d+/;
+const vimeoPattern = /^https?:\/\/(www\.)?vimeo\.com\/\d+/;
 
 export const videoLinkSchema = z.object({
   url: z
@@ -181,7 +181,26 @@ export const draftSaveSchema = z.object({
     .default([]),
 });
 
+/**
+ * Phase 7: Score schema for multi-dimension idea scoring (admin/inspector only)
+ * Each dimension is 1–10 integer. Comment is optional, max 2000 chars.
+ */
+const scoreDimension = z.number().int('Must be a whole number').min(1, 'Minimum score is 1').max(10, 'Maximum score is 10');
+
+export const scoreSchema = z.object({
+  feasibility: scoreDimension,
+  impact: scoreDimension,
+  novelty: scoreDimension,
+  costEffectiveness: scoreDimension,
+  comment: z
+    .string()
+    .max(2000, 'Comment must not exceed 2000 characters')
+    .optional()
+    .default(''),
+});
+
 export type IdeaSubmitInput = z.infer<typeof ideaSubmitSchema>;
 export type EvaluateInput = z.infer<typeof evaluateSchema>;
 export type VisibilityUpdateInput = z.infer<typeof visibilityUpdateSchema>;
 export type DraftSaveInput = z.infer<typeof draftSaveSchema>;
+export type ScoreInput = z.infer<typeof scoreSchema>;

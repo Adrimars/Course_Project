@@ -52,6 +52,15 @@ export enum StageDecision {
   RETURNED = 'RETURNED',
 }
 
+export enum NotificationType {
+  STATUS_CHANGE = 'STATUS_CHANGE',
+  ASSIGNMENT = 'ASSIGNMENT',
+  JOIN_REQUEST = 'JOIN_REQUEST',
+  SCORE_RECEIVED = 'SCORE_RECEIVED',
+  FEEDBACK = 'FEEDBACK',
+  SYSTEM = 'SYSTEM',
+}
+
 // ─── Entity Types ─────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -176,6 +185,43 @@ export interface StageReviewInfo {
   };
 }
 
+// ─── Phase 7: Notification + Scoring Types ──────────────────────────────────
+
+export interface NotificationInfo {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface IdeaScoreInfo {
+  id: string;
+  ideaId: string;
+  feasibility: number;
+  impact: number;
+  novelty: number;
+  costEffectiveness: number;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  scorer: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ScoreSummary {
+  avgScore: number;
+  avgFeasibility: number;
+  avgImpact: number;
+  avgNovelty: number;
+  avgCostEffectiveness: number;
+  scoreCount: number;
+}
+
 export interface PipelineWithStages extends ReviewPipelineInfo {
   createdAt: Date;
   updatedAt: Date;
@@ -207,6 +253,9 @@ export interface IdeaWithRelations {
   currentStageOrder: number;
   pipeline: ReviewPipelineInfo | null;
   stageReviews: StageReviewInfo[];
+  // Phase 7: scoring
+  scores: IdeaScoreInfo[];
+  scoreSummary: ScoreSummary | null;
 }
 
 export interface IdeaSummary {

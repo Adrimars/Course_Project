@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Role } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { useTabSession } from '@/components/providers/TabAuthProvider';
+import { useEffect, useState } from 'react';
 
 export function Navbar() {
   // useTabSession reads from sessionStorage — each browser tab has its own
@@ -40,8 +41,6 @@ export function Navbar() {
     role === Role.ADMIN ? 'Administrator' : role === Role.INSPECTOR ? 'Inspector' : 'User';
 
   const handleLogout = () => {
-    // Clear the per-tab sessionStorage token first, then the shared NextAuth
-    // cookie so all server-rendered pages are also logged out.
     clearTabSession();
     signOut({ callbackUrl: '/login' });
   };
@@ -119,8 +118,9 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: User info + logout */}
+        {/* Right: Notification bell + User info + logout */}
         <div className="flex items-center gap-3">
+          <NotificationBadge />
           <div className="text-right text-sm">
             <p className="font-medium text-gray-900">{user.name}</p>
             <p className="text-xs text-gray-500">{roleLabel}</p>
@@ -134,3 +134,40 @@ export function Navbar() {
   );
 }
 
+function NotificationBadge() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? sessionStorage.getItem('tab-token') : null;
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/notifications/count', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setCount(data.unreadCount ?? 0);
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    fetchCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Link href="/notifications" className="relative p-1">
+      <span className="text-lg">🔔</span>
+      {count > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
+  );
+}

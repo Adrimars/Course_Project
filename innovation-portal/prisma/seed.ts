@@ -295,6 +295,152 @@ async function main() {
   });
 
   console.log(`  ✓ Pipeline: ${pipeline.name} (${pipeline.id})`);
+
+  // ── Phase 7: Idea Scores ──────────────────────────────────────────────────
+
+  // Admin scores idea1 (Automated Code Review Pipeline)
+  await prisma.ideaScore.upsert({
+    where: { ideaId_scorerId: { ideaId: idea1.id, scorerId: admin.id } },
+    update: {},
+    create: {
+      ideaId: idea1.id,
+      scorerId: admin.id,
+      feasibility: 8,
+      impact: 9,
+      novelty: 7,
+      costEffectiveness: 6,
+      comment: 'Strong technical proposal with clear ROI. Implementation complexity is manageable.',
+    },
+  });
+
+  // Inspector scores idea1
+  await prisma.ideaScore.upsert({
+    where: { ideaId_scorerId: { ideaId: idea1.id, scorerId: inspector.id } },
+    update: {},
+    create: {
+      ideaId: idea1.id,
+      scorerId: inspector.id,
+      feasibility: 7,
+      impact: 8,
+      novelty: 8,
+      costEffectiveness: 7,
+      comment: 'Innovative approach. Would benefit from a phased rollout plan.',
+    },
+  });
+
+  // Admin scores idea2 (Cross-Department Knowledge Sharing)
+  await prisma.ideaScore.upsert({
+    where: { ideaId_scorerId: { ideaId: idea2.id, scorerId: admin.id } },
+    update: {},
+    create: {
+      ideaId: idea2.id,
+      scorerId: admin.id,
+      feasibility: 9,
+      impact: 7,
+      novelty: 5,
+      costEffectiveness: 9,
+      comment: 'Easy to implement with high value. Not very novel but proven to work.',
+    },
+  });
+
+  // Admin scores idea3 (Ergonomics Stipend)
+  await prisma.ideaScore.upsert({
+    where: { ideaId_scorerId: { ideaId: idea3.id, scorerId: admin.id } },
+    update: {},
+    create: {
+      ideaId: idea3.id,
+      scorerId: admin.id,
+      feasibility: 10,
+      impact: 8,
+      novelty: 4,
+      costEffectiveness: 7,
+      comment: 'Well-researched with solid data backing. Straightforward implementation.',
+    },
+  });
+
+  // Inspector scores idea3
+  await prisma.ideaScore.upsert({
+    where: { ideaId_scorerId: { ideaId: idea3.id, scorerId: inspector.id } },
+    update: {},
+    create: {
+      ideaId: idea3.id,
+      scorerId: inspector.id,
+      feasibility: 9,
+      impact: 9,
+      novelty: 5,
+      costEffectiveness: 8,
+      comment: 'Excellent employee benefit proposal. Would improve retention.',
+    },
+  });
+
+  console.log('  ✓ Idea scores created');
+
+  // ── Phase 7: Notifications ────────────────────────────────────────────────
+
+  // Notifications for user1 (Alice)
+  await prisma.notification.createMany({
+    data: [
+      {
+        id: 'seed-notif-1',
+        userId: user1.id,
+        type: 'STATUS_CHANGE',
+        title: 'Idea status updated',
+        message: 'Your idea "Cross-Department Knowledge Sharing Sessions" was changed to under review.',
+        link: `/ideas/${idea2.id}`,
+      },
+      {
+        id: 'seed-notif-2',
+        userId: user1.id,
+        type: 'SCORE_RECEIVED',
+        title: 'Your idea was scored',
+        message: 'Admin User scored "Automated Code Review Pipeline" with an average of 7.5/10.',
+        link: `/ideas/${idea1.id}`,
+      },
+      {
+        id: 'seed-notif-3',
+        userId: user1.id,
+        type: 'SCORE_RECEIVED',
+        title: 'Your idea was scored',
+        message: 'Inspector User scored "Automated Code Review Pipeline" with an average of 7.5/10.',
+        link: `/ideas/${idea1.id}`,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Notifications for user2 (Bob)
+  await prisma.notification.createMany({
+    data: [
+      {
+        id: 'seed-notif-4',
+        userId: user2.id,
+        type: 'STATUS_CHANGE',
+        title: 'Idea accepted!',
+        message: 'Your idea "Remote Ergonomics Stipend Program" has been accepted.',
+        link: `/ideas/${idea3.id}`,
+      },
+      {
+        id: 'seed-notif-5',
+        userId: user2.id,
+        type: 'STATUS_CHANGE',
+        title: 'Idea rejected',
+        message: 'Your idea "Company-Wide NFT Reward System" was rejected.',
+        link: `/ideas/${idea4.id}`,
+      },
+      {
+        id: 'seed-notif-6',
+        userId: user2.id,
+        type: 'SCORE_RECEIVED',
+        title: 'Your idea was scored',
+        message: 'Admin User scored "Remote Ergonomics Stipend Program" with an average of 7.3/10.',
+        link: `/ideas/${idea3.id}`,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  console.log('  ✓ Notifications created');
+
   console.log('\n✅  Seed complete!\n');
   console.log('   Admin:     admin@epam.com       / Admin123!');
   console.log('   Inspector: inspector@epam.com   / Inspector123!');
