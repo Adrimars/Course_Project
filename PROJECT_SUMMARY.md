@@ -41,41 +41,8 @@ The Innovation Portal is a full-stack web application built with Next.js 14 that
 
 ---
 
-## Challenges & Solutions
+## What Would I Have Done Differently
 
-### 1. Per-tab Authentication
-**Challenge**: The requirement for two browser tabs to hold independent user sessions is fundamentally incompatible with cookie-based auth (cookies are shared across all tabs for the same origin).  
-**Solution**: Replaced NextAuth cookie sessions with a custom `sessionStorage`-based token approach. A `useTabSession` hook stores the token in `sessionStorage` (tab-isolated), and `middleware.ts` reads it from a custom request header injected by a client-side fetch wrapper. This gives full tab isolation without requiring a separate auth service.
-
-### 2. MIME Type Spoofing
-**Challenge**: Relying on `file.type` from the browser's `FormData` allows a malicious user to rename any file with an allowed extension and bypass the format guard entirely.  
-**Solution**: After reading the upload into a Node.js `Buffer`, the server runs `file-type`'s magic-byte detection against the raw bytes before persisting. The allowed set (`ALLOWED_MIME_TYPES` in `upload.ts`) is checked against this server-derived type, not the client-supplied one.
-
-### 3. Race Condition in Admin Demotion
-**Challenge**: A check-then-act pattern for "last admin" protection—count admins, then demote if count > 1—is vulnerable to concurrent requests both reading `count = 2` and both proceeding with demotion, leaving zero admins.  
-**Solution**: The count and the `UPDATE` were wrapped in a single Prisma `$transaction` with serializable isolation, making the guard atomic.
-
-### 4. Idempotent Status Auto-Transition
-**Challenge**: The "idea moves to `UNDER_REVIEW` on first admin view" logic was implemented as a `findUnique` + conditional `update` in a Server Component, causing duplicate `StatusHistory` rows on concurrent page renders (e.g., SSR + client hydration).  
-**Solution**: Replaced the pattern with `updateMany` (which is a no-op if the predicate does not match) and a conditional `StatusHistory` create guarded by a `count` check inside a transaction, making repeated invocations safe.
-
-### 5. Pagination + Filter Query-Param Collision
-**Challenge**: Appending a page number to a URL that already contained filter query parameters produced malformed URLs (e.g., `/admin?status=SUBMITTED?page=2`).  
-**Solution**: Added separator logic in both `IdeaList.tsx` and `admin/page.tsx` to detect whether the `basePath` already contains a `?` and join additional params with `&` vs `?` accordingly.
-
----
-
-## Reflection
-
-### Key Learnings
-
-- **Spec-first discipline pays compound interest**: Writing the full specification and data model before touching code meant that every subsequent phase had a stable contract to build against. Ambiguities that would have caused mid-implementation rewrites (e.g., visibility rules, status transition legality) were resolved during the spec review session.
-- **Magic-byte MIME validation is non-negotiable for file uploads**: Browser-reported content types are user-controlled input. Validating file format server-side from raw bytes eliminates an entire class of bypass vulnerabilities with minimal overhead.
-- **Granular RBAC must be encoded at the API layer, not just the UI**: Hiding buttons in the UI is UX, not security. Every mutation route (`POST`, `PATCH`, `DELETE`) checks the caller's role independently, so a determined user cannot trigger forbidden transitions by calling the API directly.
-- **`sessionStorage` isolation solves the multi-tab auth problem elegantly**, but it requires every fetch call to pass the token explicitly and every Server Component to receive it from request headers—a pattern that must be established early and enforced consistently.
-
-### What Would Be Done Differently
-
-- **Start with a dedicated notification infrastructure** instead of bolting it on in Phase 7. Notification triggers are needed whenever status changes, scores are submitted, or assignments are made. Retrofitting the `createNotification()` helper into existing API routes that were already tested required careful re-testing of those routes.
-- **Extract file storage behind an interface from day one**. The current implementation writes directly to the local filesystem. Abstracting this behind a `StorageProvider` interface (with a `LocalStorageProvider` as the default implementation) would make a future swap to S3 or Azure Blob Storage a configuration change rather than a code change.
-- **Use a dedicated job queue for side-effects** (notifications, async MIME scanning) rather than executing them inline in API route handlers. Inline side-effects make response times dependent on secondary operations and complicate error handling when the primary write succeeds but the notification fails.
+- **Used GitHub more frequently**: I would have committed changes more regularly throughout each phase, using branches per feature and opening pull requests to maintain a clear history of progress and make it easier to review, roll back, or collaborate at any point.
+- **Invested more in the frontend with more detailed prompts**: I would have spent more time refining the UI, aiming for a more polished and detailed user experience. Better-structured and more specific prompts when generating or describing frontend components would have led to cleaner layouts, more consistent design, and a more professional overall look.
+- **Leveraged Antigravity's screenshot and video recording mode**: I would have enabled Antigravity's built-in screenshot capture and video recording during E2E test runs. This would have made it much easier to visually debug failing tests, review the application's behaviour across different flows, and produce clear evidence of feature completion without having to manually reproduce scenarios.
